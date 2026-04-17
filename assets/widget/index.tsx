@@ -334,9 +334,10 @@ function ChatPanel( {
 					{ onClose && (
 						<button
 							type="button"
-							className="header__btn"
+							className="header__btn header__close"
 							onClick={ onClose }
 							aria-label="Close"
+							title="Close"
 						>
 							<CloseIcon />
 						</button>

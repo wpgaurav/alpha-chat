@@ -173,6 +173,16 @@ export const adminApi = {
 		} ),
 	indexRemaining: () =>
 		api< { queued: number } >( '/knowledge-base/index-remaining', { method: 'POST' } ),
+	getQueueStats: () =>
+		api< { pending: number; in_progress: number; complete: number; failed: number } >(
+			'/knowledge-base/queue'
+		),
+	processQueue: () =>
+		api< {
+			before: { pending: number; in_progress: number; complete: number; failed: number };
+			after: { pending: number; in_progress: number; complete: number; failed: number };
+			processed: number;
+		} >( '/knowledge-base/queue', { method: 'POST' } ),
 	listThreads: ( page: number, perPage: number ) =>
 		api< { items: Thread[]; total: number } >( '/threads', {
 			query: { page, per_page: perPage },

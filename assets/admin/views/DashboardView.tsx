@@ -1,27 +1,59 @@
-import { useEffect, useState } from '@wordpress/element';
-import { Card, CardBody, Spinner } from '@wordpress/components';
+import { useCallback, useEffect, useState } from '@wordpress/element';
+import { Button, Card, CardBody, Spinner } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 
 import { adminApi, ChartData, Stats } from '../api';
 
+type QueueStats = { pending: number; in_progress: number; complete: number; failed: number };
+
 export function DashboardView() {
 	const [ stats, setStats ] = useState< Stats | null >( null );
 	const [ chart, setChart ] = useState< ChartData | null >( null );
+	const [ queue, setQueue ] = useState< QueueStats | null >( null );
 	const [ loading, setLoading ] = useState( true );
+	const [ processing, setProcessing ] = useState( false );
+
+	const refreshQueue = useCallback( async () => {
+		try {
+			const q = await adminApi.getQueueStats();
+			setQueue( q );
+		} catch {
+			/* ignore */
+		}
+	}, [] );
 
 	useEffect( () => {
 		let cancelled = false;
-		Promise.all( [ adminApi.getSettings(), adminApi.getChart( 14 ) ] )
-			.then( ( [ settings, chartData ] ) => {
+		Promise.all( [ adminApi.getSettings(), adminApi.getChart( 14 ), adminApi.getQueueStats() ] )
+			.then( ( [ settings, chartData, queueStats ] ) => {
 				if ( cancelled ) return;
 				setStats( settings.stats );
 				setChart( chartData );
+				setQueue( queueStats );
 			} )
 			.finally( () => ! cancelled && setLoading( false ) );
 		return () => {
 			cancelled = true;
 		};
 	}, [] );
+
+	useEffect( () => {
+		if ( ! queue || queue.pending + queue.in_progress === 0 ) return;
+		const id = window.setInterval( refreshQueue, 5000 );
+		return () => window.clearInterval( id );
+	}, [ queue, refreshQueue ] );
+
+	async function processOnce() {
+		setProcessing( true );
+		try {
+			await adminApi.processQueue();
+			await Promise.all( [ refreshQueue(), adminApi.getSettings().then( ( s ) => setStats( s.stats ) ) ] );
+		} catch {
+			/* ignore */
+		} finally {
+			setProcessing( false );
+		}
+	}
 
 	if ( loading ) {
 		return <Spinner />;
@@ -58,6 +90,43 @@ export function DashboardView() {
 					</CardBody>
 				</Card>
 			</div>
+			{ queue && (
+				<Card>
+					<CardBody>
+						<div className="alpha-chat-queue">
+							<div className="alpha-chat-queue__header">
+								<h2>{ __( 'Indexing queue', 'alpha-chat' ) }</h2>
+								<Button
+									variant="secondary"
+									onClick={ processOnce }
+									isBusy={ processing }
+									disabled={ queue.pending + queue.in_progress === 0 }
+								>
+									{ __( 'Process now', 'alpha-chat' ) }
+								</Button>
+							</div>
+							<div className="alpha-chat-queue__grid">
+								<div>
+									<div className="alpha-chat-queue__label">{ __( 'Pending', 'alpha-chat' ) }</div>
+									<div className="alpha-chat-queue__value">{ queue.pending }</div>
+								</div>
+								<div>
+									<div className="alpha-chat-queue__label">{ __( 'In progress', 'alpha-chat' ) }</div>
+									<div className="alpha-chat-queue__value">{ queue.in_progress }</div>
+								</div>
+								<div>
+									<div className="alpha-chat-queue__label">{ __( 'Complete', 'alpha-chat' ) }</div>
+									<div className="alpha-chat-queue__value">{ queue.complete }</div>
+								</div>
+								<div>
+									<div className="alpha-chat-queue__label">{ __( 'Failed', 'alpha-chat' ) }</div>
+									<div className="alpha-chat-queue__value is-error">{ queue.failed }</div>
+								</div>
+							</div>
+						</div>
+					</CardBody>
+				</Card>
+			) }
 			{ chart && <SparklineTable chart={ chart } /> }
 		</div>
 	);

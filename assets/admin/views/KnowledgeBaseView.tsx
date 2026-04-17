@@ -137,6 +137,31 @@ export function KnowledgeBaseView() {
 		}
 	}
 
+	async function processQueue() {
+		setBulkBusy( true );
+		setNotice( null );
+		try {
+			const result = await adminApi.processQueue();
+			setNotice( {
+				status: 'success',
+				message: sprintf(
+					/* translators: 1: processed, 2: pending */
+					__( 'Processed %1$d action(s). %2$d still pending.', 'alpha-chat' ),
+					result.processed,
+					result.after.pending
+				),
+			} );
+			await load();
+		} catch ( error ) {
+			setNotice( {
+				status: 'error',
+				message: error instanceof Error ? error.message : String( error ),
+			} );
+		} finally {
+			setBulkBusy( false );
+		}
+	}
+
 	async function indexRemaining() {
 		setBulkBusy( true );
 		setNotice( null );
@@ -276,6 +301,16 @@ export function KnowledgeBaseView() {
 						<FlexItem>
 							<Button variant="secondary" onClick={ reindexAll }>
 								{ __( 'Reindex all', 'alpha-chat' ) }
+							</Button>
+						</FlexItem>
+						<FlexItem>
+							<Button
+								variant="tertiary"
+								onClick={ processQueue }
+								isBusy={ bulkBusy }
+								help={ __( 'Run one Action Scheduler batch now.', 'alpha-chat' ) }
+							>
+								{ __( 'Process queue now', 'alpha-chat' ) }
 							</Button>
 						</FlexItem>
 					</Flex>

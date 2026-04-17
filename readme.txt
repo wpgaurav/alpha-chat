@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.1.0
+Stable tag: 0.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,12 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.1.1 =
+* Indexer skips re-embedding unchanged content (SHA-256 hash + model check) — "Reindex all" is now idempotent.
+* New Dashboard queue panel with live pending / in-progress / complete / failed counts and a "Process now" button.
+* New "Process queue now" button in Knowledge Base toolbar (runs one Action Scheduler batch synchronously).
+* Fixed invisible chat panel close button on mobile; repositioned as a circular top-right icon.
 
 = 0.1.0 =
 * Initial public release.

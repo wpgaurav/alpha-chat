@@ -232,6 +232,52 @@
 	}
 }
 
+/* Queue card on dashboard */
+.alpha-chat-queue {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+
+	&__header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+
+		h2 {
+			margin: 0;
+			font-size: 0.95rem;
+			font-weight: 600;
+		}
+	}
+
+	&__grid {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 0.75rem;
+
+		@media (max-width: 640px) {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	&__label {
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--ac-muted);
+	}
+
+	&__value {
+		font-size: 1.6rem;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+
+		&.is-error {
+			color: #b91c1c;
+		}
+	}
+}
+
 /* Dashboard */
 .alpha-chat-sparkline {
 	table {

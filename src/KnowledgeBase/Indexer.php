@@ -52,6 +52,19 @@ final class Indexer {
 			return false;
 		}
 
+		$content_hash = hash( 'sha256', implode( "\n---\n", $chunks ) );
+		$stored_hash  = (string) get_post_meta( $post_id, '_alpha_chat_content_hash', true );
+		$stored_model = (string) get_post_meta( $post_id, '_alpha_chat_embedding_model', true );
+		$current_model = $this->providers->embeddings()->model();
+
+		if ( '' !== $stored_hash && $stored_hash === $content_hash && $stored_model === $current_model && $this->is_indexed( $post_id ) ) {
+			update_post_meta( $post_id, '_alpha_chat_indexed_at', time() );
+			delete_post_meta( $post_id, '_alpha_chat_index_error' );
+			delete_post_meta( $post_id, '_alpha_chat_needs_update' );
+			do_action( 'alpha_chat_post_index_skipped', $post_id );
+			return true;
+		}
+
 		try {
 			$embeddings = $this->providers->embeddings()->embed( $chunks );
 		} catch ( Throwable $e ) {
@@ -85,6 +98,8 @@ final class Indexer {
 
 		update_post_meta( $post_id, '_alpha_chat_indexed_at', time() );
 		update_post_meta( $post_id, '_alpha_chat_chunk_count', count( $chunks ) );
+		update_post_meta( $post_id, '_alpha_chat_content_hash', $content_hash );
+		update_post_meta( $post_id, '_alpha_chat_embedding_model', $current_model );
 		delete_post_meta( $post_id, '_alpha_chat_index_error' );
 		delete_post_meta( $post_id, '_alpha_chat_needs_update' );
 
@@ -99,6 +114,8 @@ final class Indexer {
 
 		delete_post_meta( $post_id, '_alpha_chat_indexed_at' );
 		delete_post_meta( $post_id, '_alpha_chat_chunk_count' );
+		delete_post_meta( $post_id, '_alpha_chat_content_hash' );
+		delete_post_meta( $post_id, '_alpha_chat_embedding_model' );
 		delete_post_meta( $post_id, '_alpha_chat_index_error' );
 		delete_post_meta( $post_id, '_alpha_chat_needs_update' );
 

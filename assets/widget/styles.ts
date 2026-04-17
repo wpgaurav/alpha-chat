@@ -19,6 +19,12 @@ export const widgetStyles = `
 	box-sizing: border-box;
 }
 
+svg {
+	display: inline-block;
+	vertical-align: middle;
+	overflow: visible;
+}
+
 .launcher {
 	position: fixed;
 	inset-block-end: 1.25rem;
@@ -143,14 +149,29 @@ export const widgetStyles = `
 .header__btn {
 	background: transparent;
 	border: 0;
-	color: var(--ac-muted);
+	color: var(--ac-fg);
 	cursor: pointer;
-	padding: 0.35rem 0.6rem;
+	padding: 0.4rem 0.7rem;
 	border-radius: 8px;
 	font: inherit;
 	font-size: 13px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
 }
-.header__btn:hover { background: #f3f4f6; color: var(--ac-fg); }
+.header__btn:hover { background: #f3f4f6; }
+
+.header__close {
+	background: #f3f4f6;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border-radius: 50%;
+	color: var(--ac-fg);
+}
+.header__close:hover { background: #e5e7eb; color: #111827; }
+.header__close svg { width: 16px; height: 16px; display: block; }
 
 .log {
 	flex: 1;

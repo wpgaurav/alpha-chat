@@ -69,6 +69,23 @@ final class KnowledgeBaseController {
 
 		register_rest_route(
 			$namespace,
+			'/knowledge-base/queue',
+			[
+				[
+					'methods'             => 'GET',
+					'callback'            => [ $this, 'queue_stats' ],
+					'permission_callback' => [ SettingsController::class, 'can_manage' ],
+				],
+				[
+					'methods'             => 'POST',
+					'callback'            => [ $this, 'process_queue' ],
+					'permission_callback' => [ SettingsController::class, 'can_manage' ],
+				],
+			]
+		);
+
+		register_rest_route(
+			$namespace,
 			'/knowledge-base/post-types',
 			[
 				'methods'             => 'GET',
@@ -271,6 +288,75 @@ final class KnowledgeBaseController {
 		}
 
 		return new WP_REST_Response( [ 'queued' => count( $ids ) ] );
+	}
+
+	public function queue_stats(): WP_REST_Response {
+		return new WP_REST_Response( self::stats_for_group() );
+	}
+
+	public function process_queue(): WP_REST_Response|WP_Error {
+		if ( ! class_exists( \ActionScheduler::class ) || ! function_exists( 'as_next_scheduled_action' ) ) {
+			return new WP_Error( 'alpha_chat_no_scheduler', __( 'Action Scheduler is not available.', 'alpha-chat' ), [ 'status' => 500 ] );
+		}
+
+		$before = self::stats_for_group();
+
+		try {
+			$runner = \ActionScheduler::runner();
+			if ( method_exists( $runner, 'run' ) ) {
+				$runner->run( 'Alpha Chat manual' );
+			}
+		} catch ( \Throwable $e ) {
+			return new WP_Error( 'alpha_chat_runner_failed', $e->getMessage(), [ 'status' => 500 ] );
+		}
+
+		$after = self::stats_for_group();
+
+		return new WP_REST_Response(
+			[
+				'before'    => $before,
+				'after'     => $after,
+				'processed' => max( 0, $after['complete'] - $before['complete'] ),
+			]
+		);
+	}
+
+	/**
+	 * @return array{pending:int, in_progress:int, complete:int, failed:int}
+	 */
+	private static function stats_for_group(): array {
+		global $wpdb;
+
+		$groups_table  = esc_sql( $wpdb->prefix . 'actionscheduler_groups' );
+		$actions_table = esc_sql( $wpdb->prefix . 'actionscheduler_actions' );
+
+		$group_id = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT group_id FROM {$groups_table} WHERE slug = %s",
+				'alpha-chat'
+			)
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		if ( ! $group_id ) {
+			return [ 'pending' => 0, 'in_progress' => 0, 'complete' => 0, 'failed' => 0 ];
+		}
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT status, COUNT(*) AS c FROM {$actions_table} WHERE group_id = %d GROUP BY status",
+				(int) $group_id
+			),
+			ARRAY_A
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		$out = [ 'pending' => 0, 'in_progress' => 0, 'complete' => 0, 'failed' => 0 ];
+		foreach ( (array) $rows as $row ) {
+			$status = str_replace( '-', '_', (string) $row['status'] );
+			if ( isset( $out[ $status ] ) ) {
+				$out[ $status ] = (int) $row['c'];
+			}
+		}
+		return $out;
 	}
 
 	public function list_post_types(): WP_REST_Response {

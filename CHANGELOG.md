@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-04-17
+## [0.1.1] - 2026-04-17
+
+### Added
+- `Indexer::index_post` now stores a SHA-256 content hash + embedding model per post and **skips re-embedding when nothing has changed**. Makes "Reindex all" idempotent and cheap.
+- New `GET /knowledge-base/queue` endpoint returning `pending / in_progress / complete / failed` counts for the `alpha-chat` Action Scheduler group.
+- New `POST /knowledge-base/queue` endpoint runs one Action Scheduler batch synchronously (useful when `DISABLE_WP_CRON` is set).
+- Dashboard shows live indexing queue counts with auto-refresh every 5s while work is in flight, plus a one-click "Process now" button.
+- Knowledge Base toolbar gains a "Process queue now" button.
+
+### Fixed
+- Chat panel close button was invisible on mobile — SVG had no explicit size inside the shadow DOM's `all: initial` root. Added a global `svg` rule + sized close icon; close is now a circular button in the header top-right.
+- Re-queued bulk jobs no longer re-embed already-indexed content (hash guard).
+
+### Changed
+- Removed `:host` reset for all SVGs globally, ensuring any icon placed in the widget renders at its CSS size.
 
 ### Added
 
