@@ -1,0 +1,16 @@
+{
+	"extends": "@wordpress/scripts/tsconfig.json",
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"allowJs": true,
+		"checkJs": false,
+		"noEmit": true,
+		"skipLibCheck": true,
+		"esModuleInterop": true,
+		"moduleResolution": "node",
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"strict": true
+	},
+	"include": [ "assets/**/*" ]
+}

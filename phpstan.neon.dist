@@ -1,0 +1,17 @@
+parameters:
+    level: 8
+    phpVersion: 80200
+    paths:
+        - alpha-chat.php
+        - src
+    excludePaths:
+        - vendor
+        - node_modules (?)
+        - build (?)
+    bootstrapFiles:
+        - vendor/autoload.php
+        - tests/phpstan-bootstrap.php
+    treatPhpDocTypesAsCertain: false
+
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon

@@ -1,0 +1,27 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "alpha-chat/chat",
+    "version": "0.1.0",
+    "title": "Alpha Chat",
+    "category": "widgets",
+    "description": "Embed the Alpha Chat chatbot in a post or page.",
+    "textdomain": "alpha-chat",
+    "keywords": [ "chat", "chatbot", "ai", "assistant" ],
+    "supports": {
+        "html": false,
+        "align": [ "wide", "full" ]
+    },
+    "attributes": {
+        "heading": {
+            "type": "string",
+            "default": ""
+        },
+        "placeholder": {
+            "type": "string",
+            "default": ""
+        }
+    },
+    "editorScript": "file:./index.tsx",
+    "render": "file:./render.php"
+}

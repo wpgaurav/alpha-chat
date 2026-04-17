@@ -1,0 +1,44 @@
+{
+    "name": "alpha-chat",
+    "version": "0.1.0",
+    "description": "AI-powered chatbot for WordPress.",
+    "license": "GPL-2.0-or-later",
+    "private": true,
+    "scripts": {
+        "build": "wp-scripts build --webpack-src-dir=assets --output-path=build",
+        "start": "wp-scripts start --webpack-src-dir=assets --output-path=build",
+        "lint:js": "wp-scripts lint-js assets",
+        "lint:css": "wp-scripts lint-style assets",
+        "format": "wp-scripts format assets",
+        "packages-update": "wp-scripts packages-update",
+        "env:start": "wp-env start",
+        "env:stop": "wp-env stop",
+        "env:destroy": "wp-env destroy",
+        "env:cli": "wp-env run cli wp",
+        "test:e2e": "wp-scripts test-playwright",
+        "plugin-zip": "wp-scripts plugin-zip"
+    },
+    "devDependencies": {
+        "@wordpress/block-editor": "^15.17.0",
+        "@wordpress/blocks": "^15.17.0",
+        "@wordpress/components": "^32.6.0",
+        "@wordpress/dom-ready": "^4.44.0",
+        "@wordpress/element": "^6.44.0",
+        "@wordpress/env": "^10.10.0",
+        "@wordpress/i18n": "^6.17.0",
+        "@wordpress/icons": "^12.2.0",
+        "@wordpress/scripts": "^30.5.0"
+    },
+    "engines": {
+        "node": ">=20"
+    },
+    "files": [
+        "alpha-chat.php",
+        "build",
+        "src",
+        "vendor",
+        "languages",
+        "readme.txt",
+        "LICENSE"
+    ]
+}
