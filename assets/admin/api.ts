@@ -73,6 +73,16 @@ export type Settings = {
 	contact_notify_email: string;
 };
 
+export type Faq = {
+	id: number;
+	question: string;
+	answer: string;
+	sort_order: number;
+	enabled: boolean;
+	created_at: string;
+	updated_at: string;
+};
+
 export type Contact = {
 	id: number;
 	thread_uuid: string;
@@ -198,4 +208,11 @@ export const adminApi = {
 		} ),
 	deleteContact: ( id: number ) =>
 		api< { deleted: boolean } >( `/contacts/${ id }`, { method: 'DELETE' } ),
+	listFaqs: () => api< { items: Faq[] } >( '/faqs' ),
+	createFaq: ( data: { question: string; answer: string; enabled: boolean; sort_order: number } ) =>
+		api< { id: number; item: Faq } >( '/faqs', { method: 'POST', body: data } ),
+	updateFaq: ( id: number, data: Partial< Omit< Faq, 'id' | 'created_at' | 'updated_at' > > ) =>
+		api< { item: Faq } >( `/faqs/${ id }`, { method: 'PUT', body: data } ),
+	deleteFaq: ( id: number ) =>
+		api< { deleted: boolean } >( `/faqs/${ id }`, { method: 'DELETE' } ),
 };

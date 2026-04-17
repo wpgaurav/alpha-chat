@@ -68,6 +68,30 @@ function uid(): string {
 	return `${ Date.now() }-${ Math.random().toString( 36 ).slice( 2, 8 ) }`;
 }
 
+function stripCitations( text: string ): string {
+	return text
+		.replace( /\s*\[(?:\d+\s*(?:[,;]\s*\d+\s*)*)\]/g, '' )
+		.replace( /[ \t]+([.,;:!?])/g, '$1' )
+		.replace( / {2,}/g, ' ' )
+		.trim();
+}
+
+function withUtm( url: string ): string {
+	if ( ! url ) return url;
+	try {
+		const u = new URL( url, window.location.origin );
+		if ( ! u.searchParams.has( 'utm_source' ) ) u.searchParams.set( 'utm_source', 'alpha_chat' );
+		if ( ! u.searchParams.has( 'utm_medium' ) ) u.searchParams.set( 'utm_medium', 'chat_widget' );
+		if ( ! u.searchParams.has( 'utm_campaign' ) ) u.searchParams.set( 'utm_campaign', 'ai_answer' );
+		if ( ! u.searchParams.has( 'utm_referrer' ) ) {
+			u.searchParams.set( 'utm_referrer', window.location.host );
+		}
+		return u.toString();
+	} catch {
+		return url;
+	}
+}
+
 function ChatIcon() {
 	return (
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -112,7 +136,7 @@ function SourceCards( { sources }: { sources: Source[] } ) {
 					<a
 						key={ `${ s.source_type }-${ s.source_id }-${ i }` }
 						className="source"
-						href={ s.url }
+						href={ withUtm( s.url ) }
 						target="_blank"
 						rel="noopener noreferrer"
 					>
@@ -293,7 +317,7 @@ function ChatPanel( {
 				{
 					id: uid(),
 					role: 'assistant',
-					content: data.reply || client.fallbackMessage,
+					content: stripCitations( data.reply || client.fallbackMessage ),
 					sources: data.sources ?? [],
 				},
 			] );

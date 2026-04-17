@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.1.1
+Stable tag: 0.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,13 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.1.2 =
+* New **Q&A admin tab** — add curated question/answer pairs that the assistant always knows about (brand identity, pricing, contact info, policies). Backed by a new `wp_alpha_chat_faqs` table.
+* Brand identity is now injected into the system prompt automatically. "Who are you?" and similar prompts get a coherent reply without needing retrieval.
+* Retrieval gate widened: assistant calls the LLM whenever FAQs exist OR chunks are retrieved, even if only one is available.
+* Frontend strips inline citation markers (`[1]`, `[2, 3]`) from replies — the source cards below remain.
+* Source card links now carry UTM params (`utm_source=alpha_chat`, `utm_medium=chat_widget`, `utm_campaign=ai_answer`, `utm_referrer={host}`) so chatbot-driven traffic is attributable in analytics.
 
 = 0.1.1 =
 * Indexer skips re-embedding unchanged content (SHA-256 hash + model check) — "Reindex all" is now idempotent.

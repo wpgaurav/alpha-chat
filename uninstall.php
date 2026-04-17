@@ -21,6 +21,7 @@ $tables = [
 	$wpdb->prefix . 'alpha_chat_threads',
 	$wpdb->prefix . 'alpha_chat_messages',
 	$wpdb->prefix . 'alpha_chat_contacts',
+	$wpdb->prefix . 'alpha_chat_faqs',
 ];
 
 foreach ( $tables as $table ) {

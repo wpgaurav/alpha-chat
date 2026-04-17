@@ -5,7 +5,7 @@ namespace AlphaChat\Database;
 
 final class Schema {
 
-	public const VERSION = '1.2.0';
+	public const VERSION = '1.3.0';
 
 	public static function install(): void {
 		global $wpdb;
@@ -18,6 +18,7 @@ final class Schema {
 		$threads  = self::threads_table();
 		$messages = self::messages_table();
 		$contacts = self::contacts_table();
+		$faqs     = self::faqs_table();
 
 		$sql = [
 			"CREATE TABLE $chunks (
@@ -68,6 +69,18 @@ final class Schema {
 				KEY created_at (created_at)
 			) $charset_collate;",
 
+			"CREATE TABLE $faqs (
+				id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+				question VARCHAR(500) NOT NULL,
+				answer LONGTEXT NOT NULL,
+				sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+				enabled TINYINT(1) NOT NULL DEFAULT 1,
+				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY  (id),
+				KEY sort_order (sort_order)
+			) $charset_collate;",
+
 			"CREATE TABLE $contacts (
 				id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 				thread_uuid CHAR(36) NOT NULL DEFAULT '',
@@ -111,6 +124,11 @@ final class Schema {
 	public static function contacts_table(): string {
 		global $wpdb;
 		return $wpdb->prefix . 'alpha_chat_contacts';
+	}
+
+	public static function faqs_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'alpha_chat_faqs';
 	}
 
 	public static function maybe_upgrade(): void {

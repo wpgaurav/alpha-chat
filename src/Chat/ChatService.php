@@ -19,6 +19,7 @@ final class ChatService {
 		private readonly MessageRepository $messages,
 		private readonly TokenCounter $counter,
 		private readonly Logger $logger,
+		private readonly FaqRepository $faqs,
 	) {}
 
 	/**
@@ -79,8 +80,9 @@ final class ChatService {
 		 * @param string                                                                $message
 		 */
 		$chunks = self::enrich_chunks( (array) apply_filters( 'alpha_chat_retrieved_chunks', $chunks, $message ) );
+		$faqs   = $this->faqs->all( true );
 
-		if ( empty( $chunks ) ) {
+		if ( empty( $chunks ) && empty( $faqs ) ) {
 			$fallback = (string) $this->settings->get( 'fallback_message', '' );
 			$this->messages->append( $thread_id, 'assistant', $fallback, $this->counter->count( $fallback ), [ 'sources' => [], 'skipped_llm' => true ] );
 			$this->threads->touch( $thread_id, 2, '' === $thread['title'] ? wp_trim_words( $message, 8 ) : null );
@@ -93,7 +95,7 @@ final class ChatService {
 		}
 
 		$history = $this->messages->for_thread( $thread_id, 12 );
-		$prompt  = $this->build_messages( $message, $chunks, $history );
+		$prompt  = $this->build_messages( $message, $chunks, $faqs, $history );
 
 		$options = [
 			'temperature' => (float) $this->settings->get( 'temperature', 0.7 ),
@@ -147,18 +149,36 @@ final class ChatService {
 	}
 
 	/**
-	 * @param list<array{id: string, score: float, metadata: array<string, mixed>}> $chunks
-	 * @param list<array<string, mixed>>                                            $history
+	 * @param list<array{id: string, score: float, metadata: array<string, mixed>}>           $chunks
+	 * @param list<array{id:int, question:string, answer:string, sort_order:int, enabled:bool, created_at:string, updated_at:string}> $faqs
+	 * @param list<array<string, mixed>>                                                      $history
 	 *
 	 * @return list<array{role: string, content: string}>
 	 */
-	private function build_messages( string $message, array $chunks, array $history ): array {
-		$system = (string) $this->settings->get( 'system_prompt', '' );
+	private function build_messages( string $message, array $chunks, array $faqs, array $history ): array {
+		$brand    = (string) $this->settings->get( 'brand_name', (string) get_bloginfo( 'name' ) );
+		$identity = sprintf(
+			"You are the AI assistant for %s. If someone asks who you are, what this chat is, or similar, explain that you are %s's AI helper that answers questions based on the site's content and curated Q&A. Do not invent a human name or claim to be a person. Do not use outside knowledge beyond the context provided below.",
+			$brand,
+			$brand
+		);
+
+		$system_setting = trim( (string) $this->settings->get( 'system_prompt', '' ) );
+		$system         = $identity . ( '' !== $system_setting ? "\n\n" . $system_setting : '' );
+
+		if ( ! empty( $faqs ) ) {
+			$faq_block = "Curated Q&A (authoritative — use these verbatim when the user's question matches):\n\n";
+			foreach ( $faqs as $i => $faq ) {
+				$faq_block .= sprintf( "Q%d: %s\nA%d: %s\n\n", $i + 1, trim( $faq['question'] ), $i + 1, trim( $faq['answer'] ) );
+			}
+			$system .= "\n\n" . trim( $faq_block );
+		}
 
 		if ( ! empty( $chunks ) ) {
-			$context  = "Use the numbered context below to answer. Ground every factual claim in it — do not invent facts or cite outside sources.\n";
-			$context .= "If the context covers the topic, write a direct, helpful answer in 2–5 short sentences and cite sources inline as [1], [2].\n";
-			$context .= "If the context does not cover what the user asked, say so briefly (e.g. \"I don't have that on the site yet\") — in your own words, not a canned message.\n\n";
+			$context  = "Numbered site context. Ground every factual claim in these passages and do not invent sources.\n";
+			$context .= "When the context covers the topic, answer in 2–5 short sentences.\n";
+			$context .= "When it doesn't, say so briefly in your own words.\n";
+			$context .= "Do NOT include bracketed citation markers like [1] or [2] in your reply — the UI renders source links separately.\n\n";
 			foreach ( $chunks as $i => $chunk ) {
 				$meta  = (array) ( $chunk['metadata'] ?? [] );
 				$title = (string) ( $meta['title'] ?? '' );

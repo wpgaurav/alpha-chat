@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-04-17
+
+### Added
+- **Q&A admin tab** for curated question/answer pairs. New `wp_alpha_chat_faqs` table, REST CRUD at `/faqs`, and context-injection into every chat request.
+- Source links now carry UTM parameters (`utm_source=alpha_chat`, `utm_medium=chat_widget`, `utm_campaign=ai_answer`, `utm_referrer={host}`).
+
+### Changed
+- Brand identity is prepended to the system prompt on every request. "Who are you?" and similar prompts now resolve without needing RAG context.
+- Retrieval gate widened: LLM is called when either chunks OR FAQs are available; fallback only when both are empty.
+- System prompt now explicitly tells the LLM **not** to emit bracketed citation markers — frontend strips any that slip through.
+
+### Fixed
+- Identity-style questions returning fallback even with an indexed site.
+
 ## [0.1.1] - 2026-04-17
 
 ### Added

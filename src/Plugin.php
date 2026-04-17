@@ -9,6 +9,7 @@ use AlphaChat\Admin\PostRowActions;
 use AlphaChat\Block\BlockRegistrar;
 use AlphaChat\Chat\ChatService;
 use AlphaChat\Chat\ContactRepository;
+use AlphaChat\Chat\FaqRepository;
 use AlphaChat\Chat\MessageRepository;
 use AlphaChat\Chat\ThreadRepository;
 use AlphaChat\Frontend\WidgetLoader;
@@ -18,6 +19,7 @@ use AlphaChat\KnowledgeBase\PostHooks;
 use AlphaChat\Providers\ProviderFactory;
 use AlphaChat\REST\ChatController;
 use AlphaChat\REST\ContactController;
+use AlphaChat\REST\FaqController;
 use AlphaChat\REST\KnowledgeBaseController;
 use AlphaChat\REST\RouteRegistrar;
 use AlphaChat\REST\SettingsController;
@@ -92,6 +94,7 @@ final class Plugin {
 		$c->set( ThreadRepository::class, static fn () => new ThreadRepository() );
 		$c->set( MessageRepository::class, static fn () => new MessageRepository() );
 		$c->set( ContactRepository::class, static fn () => new ContactRepository() );
+		$c->set( FaqRepository::class, static fn () => new FaqRepository() );
 
 		$c->set(
 			Indexer::class,
@@ -112,6 +115,7 @@ final class Plugin {
 				$c->get( MessageRepository::class ),
 				$c->get( TokenCounter::class ),
 				$c->get( Logger::class ),
+				$c->get( FaqRepository::class ),
 			),
 		);
 
@@ -187,6 +191,11 @@ final class Plugin {
 				$c->get( ContactRepository::class ),
 				$c->get( SettingsRepository::class ),
 			),
+		);
+
+		$c->set(
+			FaqController::class,
+			static fn ( Container $c ) => new FaqController( $c->get( FaqRepository::class ) ),
 		);
 
 		$c->set(
