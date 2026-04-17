@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.1.2
+Stable tag: 0.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,10 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.1.3 =
+* Frontend widget no longer pulls WordPress core JS scripts (`wp-element`, `wp-i18n`, `wp-hooks`, `wp-dom-ready`, `wp-escape-html`, `react`, `react-dom`). React is bundled directly into the widget.
+* One script request on the frontend instead of seven — measurable reduction in render-blocking JS for sites where the widget is enabled site-wide.
 
 = 0.1.2 =
 * New **Q&A admin tab** — add curated question/answer pairs that the assistant always knows about (brand identity, pricing, contact info, policies). Backed by a new `wp_alpha_chat_faqs` table.

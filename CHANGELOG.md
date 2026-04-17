@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-04-17
+
+### Changed
+- Frontend widget bundles React directly instead of relying on WordPress core's `wp-element` / `wp-dom-ready` script handles. The widget no longer enqueues `react`, `react-dom`, `react-jsx-runtime`, `wp-element`, `wp-i18n`, `wp-hooks`, `wp-dom-ready`, or `wp-escape-html` on the frontend.
+
+### Performance
+- Frontend widget loads as a single ~48 KiB gzipped script instead of seven separate WordPress core script requests.
+
 ## [0.1.2] - 2026-04-17
 
 ### Added
