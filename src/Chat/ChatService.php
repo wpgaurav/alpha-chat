@@ -82,20 +82,9 @@ final class ChatService {
 		$chunks = self::enrich_chunks( (array) apply_filters( 'alpha_chat_retrieved_chunks', $chunks, $message ) );
 		$faqs   = $this->faqs->all( true );
 
-		if ( empty( $chunks ) && empty( $faqs ) ) {
-			$fallback = (string) $this->settings->get( 'fallback_message', '' );
-			$this->messages->append( $thread_id, 'assistant', $fallback, $this->counter->count( $fallback ), [ 'sources' => [], 'skipped_llm' => true ] );
-			$this->threads->touch( $thread_id, 2, '' === $thread['title'] ? wp_trim_words( $message, 8 ) : null );
-			do_action( 'alpha_chat_unanswered_question', $thread_id, $message );
-			return [
-				'thread_uuid' => (string) $thread['uuid'],
-				'reply'       => $fallback,
-				'sources'     => [],
-			];
-		}
-
-		$history = $this->messages->for_thread( $thread_id, 12 );
-		$prompt  = $this->build_messages( $message, $chunks, $faqs, $history );
+		$history  = $this->messages->for_thread( $thread_id, 12 );
+		$fallback = (string) $this->settings->get( 'fallback_message', '' );
+		$prompt   = $this->build_messages( $message, $chunks, $faqs, $history, $fallback );
 
 		$options = [
 			'temperature' => (float) $this->settings->get( 'temperature', 0.7 ),
@@ -155,7 +144,7 @@ final class ChatService {
 	 *
 	 * @return list<array{role: string, content: string}>
 	 */
-	private function build_messages( string $message, array $chunks, array $faqs, array $history ): array {
+	private function build_messages( string $message, array $chunks, array $faqs, array $history, string $fallback = '' ): array {
 		$brand    = (string) $this->settings->get( 'brand_name', (string) get_bloginfo( 'name' ) );
 		$identity = sprintf(
 			"You are the AI assistant for %s. If someone asks who you are, what this chat is, or similar, explain that you are %s's AI helper that answers questions based on the site's content and curated Q&A. Do not invent a human name or claim to be a person. Do not use outside knowledge beyond the context provided below.",
@@ -163,8 +152,13 @@ final class ChatService {
 			$brand
 		);
 
+		$conversational = "Conversational replies are welcome: if the user is greeting you, thanking you, saying goodbye, or making small talk, respond naturally in one short sentence — do not refuse or use the fallback message for these.";
+		if ( '' !== trim( $fallback ) ) {
+			$conversational .= sprintf( " Reserve this exact fallback for genuine factual questions you cannot answer from the provided context or Q&A: \"%s\"", trim( $fallback ) );
+		}
+
 		$system_setting = trim( (string) $this->settings->get( 'system_prompt', '' ) );
-		$system         = $identity . ( '' !== $system_setting ? "\n\n" . $system_setting : '' );
+		$system         = $identity . "\n\n" . $conversational . ( '' !== $system_setting ? "\n\n" . $system_setting : '' );
 
 		if ( ! empty( $faqs ) ) {
 			$faq_block = "Curated Q&A (authoritative — use these verbatim when the user's question matches):\n\n";

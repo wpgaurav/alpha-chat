@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-04-17
+
+### Changed
+- Removed the hard "no retrieval → fallback" gate in `ChatService`. The LLM is now always called and instructed to handle conversational messages (greetings, thanks, goodbyes, small talk) naturally, reserving the configured fallback message verbatim only for genuine unanswerable factual questions.
+
+### Fixed
+- "Thanks", "hi", "bye", and similar conversational messages no longer return the "Sorry, I couldn't find an answer" fallback.
+
 ## [0.1.3] - 2026-04-17
 
 ### Changed
