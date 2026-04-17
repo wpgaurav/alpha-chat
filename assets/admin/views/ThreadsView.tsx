@@ -178,6 +178,18 @@ export function ThreadsView() {
 										selected.uuid
 									) }
 								</p>
+								{ selected.origin_url && (
+									<p className="alpha-chat-threads__meta">
+										{ __( 'Started from: ', 'alpha-chat' ) }
+										<a
+											href={ selected.origin_url }
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											{ selected.origin_url }
+										</a>
+									</p>
+								) }
 								{ messagesLoading ? (
 									<Spinner />
 								) : (

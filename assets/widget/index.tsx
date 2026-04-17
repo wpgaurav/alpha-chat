@@ -361,6 +361,7 @@ function ChatPanel( {
 				body: JSON.stringify( {
 					message: trimmed,
 					thread: threadUuid,
+					origin_url: window.location.href,
 				} ),
 			} );
 			const raw = await response.text();

@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.1.4
+Stable tag: 0.1.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,10 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.1.5 =
+* Conversations now record the page URL the chat was started from. Visible in the Conversations admin tab and included in CSV exports.
+* New `origin_url` column on `wp_alpha_chat_threads` (added automatically on plugin update via `dbDelta`).
 
 = 0.1.4 =
 * Conversational messages like "thanks", "hi", or "bye" no longer trigger the "Sorry, I couldn't find an answer" fallback. The LLM now handles small talk naturally and reserves the fallback message for genuine unanswerable factual questions.

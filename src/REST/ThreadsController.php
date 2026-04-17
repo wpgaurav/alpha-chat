@@ -113,7 +113,7 @@ final class ThreadsController {
 	public function export( WP_REST_Request $request ): WP_REST_Response {
 		unset( $request );
 
-		$rows       = [ [ 'thread_uuid', 'created_at', 'role', 'content' ] ];
+		$rows       = [ [ 'thread_uuid', 'origin_url', 'created_at', 'role', 'content' ] ];
 		$page       = 1;
 		do {
 			$threads = $this->threads->list( 100, $page );
@@ -121,6 +121,7 @@ final class ThreadsController {
 				foreach ( $this->messages->for_thread( (int) $thread['id'], 1000 ) as $message ) {
 					$rows[] = [
 						$thread['uuid'],
+						(string) ( $thread['origin_url'] ?? '' ),
 						$message['created_at'],
 						$message['role'],
 						$message['content'],
@@ -173,6 +174,7 @@ final class ThreadsController {
 			'uuid'          => (string) $row['uuid'],
 			'user_id'       => null === $row['user_id'] ? null : (int) $row['user_id'],
 			'title'         => (string) $row['title'],
+			'origin_url'    => (string) ( $row['origin_url'] ?? '' ),
 			'message_count' => (int) $row['message_count'],
 			'created_at'    => (string) $row['created_at'],
 			'updated_at'    => (string) $row['updated_at'],

@@ -128,6 +128,7 @@ export type Thread = {
 	uuid: string;
 	user_id: number | null;
 	title: string;
+	origin_url: string;
 	message_count: number;
 	created_at: string;
 	updated_at: string;

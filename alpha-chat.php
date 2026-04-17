@@ -3,7 +3,7 @@
  * Plugin Name:       Alpha Chat
  * Plugin URI:        https://github.com/wpgaurav/alpha-chat
  * Description:       AI-powered chatbot for WordPress. Turn your site's content into a conversation.
- * Version:           0.1.4
+ * Version:           0.1.5
  * Requires at least: 6.5
  * Requires PHP:      8.2
  * Author:            Gaurav Tiwari
@@ -34,7 +34,7 @@ if ( version_compare( PHP_VERSION, '8.2', '<' ) ) {
 	return;
 }
 
-define( 'ALPHA_CHAT_VERSION', '0.1.4' );
+define( 'ALPHA_CHAT_VERSION', '0.1.5' );
 define( 'ALPHA_CHAT_FILE', __FILE__ );
 define( 'ALPHA_CHAT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ALPHA_CHAT_URL', plugin_dir_url( __FILE__ ) );

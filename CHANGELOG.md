@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-04-17
+
+### Added
+- Threads now capture the originating page URL (`origin_url`) when a conversation begins. Frontend widget sends `window.location.href` with the first chat request; admin Conversations tab displays it as a clickable link in the detail panel; CSV export includes it as a new column.
+- New `origin_url VARCHAR(500)` column on `wp_alpha_chat_threads`. Schema version bumped to `1.4.0` — `dbDelta` adds the column automatically on existing installs.
+
 ## [0.1.4] - 2026-04-17
 
 ### Changed

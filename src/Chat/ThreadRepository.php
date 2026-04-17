@@ -21,7 +21,7 @@ final class ThreadRepository {
 	}
 
 	/** @return array<string, mixed> */
-	public function create( string $session_hash, ?int $user_id = null ): array {
+	public function create( string $session_hash, ?int $user_id = null, string $origin_url = '' ): array {
 		global $wpdb;
 		$uuid = wp_generate_uuid4();
 		$wpdb->insert(
@@ -31,8 +31,9 @@ final class ThreadRepository {
 				'user_id'      => $user_id,
 				'session_hash' => $session_hash,
 				'title'        => '',
+				'origin_url'   => $origin_url,
 			],
-			[ '%s', '%d', '%s', '%s' ]
+			[ '%s', '%d', '%s', '%s', '%s' ]
 		);
 		return $this->find_by_uuid( $uuid ) ?? [];
 	}
@@ -104,6 +105,7 @@ final class ThreadRepository {
 			'user_id'       => null === $row['user_id'] ? null : (int) $row['user_id'],
 			'session_hash'  => (string) $row['session_hash'],
 			'title'         => (string) $row['title'],
+			'origin_url'    => (string) ( $row['origin_url'] ?? '' ),
 			'message_count' => (int) $row['message_count'],
 			'created_at'    => (string) $row['created_at'],
 			'updated_at'    => (string) $row['updated_at'],

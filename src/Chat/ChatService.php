@@ -25,7 +25,7 @@ final class ChatService {
 	/**
 	 * @return array{thread_uuid: string, reply: string, flagged?: bool, sources: list<array{source_type: string, source_id: int, score: float}>}
 	 */
-	public function send( string $message, ?string $thread_uuid, string $session_hash, ?int $user_id = null ): array {
+	public function send( string $message, ?string $thread_uuid, string $session_hash, ?int $user_id = null, string $origin_url = '' ): array {
 		$message = trim( $message );
 		if ( '' === $message ) {
 			throw new RuntimeException( 'Empty message.' );
@@ -50,7 +50,7 @@ final class ChatService {
 
 		$thread = null === $thread_uuid ? null : $this->threads->find_by_uuid( $thread_uuid );
 		if ( null === $thread ) {
-			$thread = $this->threads->create( $session_hash, $user_id );
+			$thread = $this->threads->create( $session_hash, $user_id, $origin_url );
 		}
 
 		$thread_id = (int) $thread['id'];

@@ -5,7 +5,7 @@ namespace AlphaChat\Database;
 
 final class Schema {
 
-	public const VERSION = '1.3.0';
+	public const VERSION = '1.4.0';
 
 	public static function install(): void {
 		global $wpdb;
@@ -46,6 +46,7 @@ final class Schema {
 				user_id BIGINT UNSIGNED NULL,
 				session_hash CHAR(64) NOT NULL DEFAULT '',
 				title VARCHAR(255) NOT NULL DEFAULT '',
+				origin_url VARCHAR(500) NOT NULL DEFAULT '',
 				message_count INT UNSIGNED NOT NULL DEFAULT 0,
 				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 				updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

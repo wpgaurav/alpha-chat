@@ -36,6 +36,10 @@ final class ChatController {
 						'type'              => 'string',
 						'sanitize_callback' => 'sanitize_text_field',
 					],
+					'origin_url' => [
+						'type'              => 'string',
+						'sanitize_callback' => 'esc_url_raw',
+					],
 				],
 			]
 		);
@@ -51,13 +55,14 @@ final class ChatController {
 			return new WP_Error( 'alpha_chat_rate_limited', __( 'Too many requests. Please slow down.', 'alpha-chat' ), [ 'status' => 429 ] );
 		}
 
-		$message = (string) $request->get_param( 'message' );
-		$thread  = (string) $request->get_param( 'thread' );
-		$thread  = '' === $thread ? null : $thread;
-		$user_id = get_current_user_id();
+		$message    = (string) $request->get_param( 'message' );
+		$thread     = (string) $request->get_param( 'thread' );
+		$thread     = '' === $thread ? null : $thread;
+		$user_id    = get_current_user_id();
+		$origin_url = mb_substr( (string) $request->get_param( 'origin_url' ), 0, 500 );
 
 		try {
-			$result = $this->chat->send( $message, $thread, $session_hash, $user_id > 0 ? $user_id : null );
+			$result = $this->chat->send( $message, $thread, $session_hash, $user_id > 0 ? $user_id : null, $origin_url );
 		} catch ( Throwable $e ) {
 			return new WP_Error( 'alpha_chat_failed', $e->getMessage(), [ 'status' => 502 ] );
 		}
