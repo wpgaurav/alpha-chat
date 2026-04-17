@@ -1,5 +1,17 @@
-import { createRoot, useEffect, useMemo, useRef, useState } from '@wordpress/element';
-import domReady from '@wordpress/dom-ready';
+import * as React from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+
+function domReady( callback: () => void ): void {
+	if (
+		document.readyState === 'complete' ||
+		document.readyState === 'interactive'
+	) {
+		setTimeout( callback, 0 );
+		return;
+	}
+	document.addEventListener( 'DOMContentLoaded', callback );
+}
 
 import { widgetStyles } from './styles';
 
@@ -77,12 +89,20 @@ function stripCitations( text: string ): string {
 }
 
 function withUtm( url: string ): string {
-	if ( ! url ) return url;
+	if ( ! url ) {
+		return url;
+	}
 	try {
 		const u = new URL( url, window.location.origin );
-		if ( ! u.searchParams.has( 'utm_source' ) ) u.searchParams.set( 'utm_source', 'alpha_chat' );
-		if ( ! u.searchParams.has( 'utm_medium' ) ) u.searchParams.set( 'utm_medium', 'chat_widget' );
-		if ( ! u.searchParams.has( 'utm_campaign' ) ) u.searchParams.set( 'utm_campaign', 'ai_answer' );
+		if ( ! u.searchParams.has( 'utm_source' ) ) {
+			u.searchParams.set( 'utm_source', 'alpha_chat' );
+		}
+		if ( ! u.searchParams.has( 'utm_medium' ) ) {
+			u.searchParams.set( 'utm_medium', 'chat_widget' );
+		}
+		if ( ! u.searchParams.has( 'utm_campaign' ) ) {
+			u.searchParams.set( 'utm_campaign', 'ai_answer' );
+		}
 		if ( ! u.searchParams.has( 'utm_referrer' ) ) {
 			u.searchParams.set( 'utm_referrer', window.location.host );
 		}
@@ -94,7 +114,15 @@ function withUtm( url: string ): string {
 
 function ChatIcon() {
 	return (
-		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
 			<path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
 		</svg>
 	);
@@ -102,7 +130,15 @@ function ChatIcon() {
 
 function ArrowUpIcon() {
 	return (
-		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
 			<path d="M12 19V5" />
 			<path d="M5 12l7-7 7 7" />
 		</svg>
@@ -111,7 +147,15 @@ function ArrowUpIcon() {
 
 function CloseIcon() {
 	return (
-		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
 			<path d="M18 6L6 18" />
 			<path d="M6 6l12 12" />
 		</svg>
@@ -120,15 +164,25 @@ function CloseIcon() {
 
 function cssVarStyle( colors: Record< string, string > ): React.CSSProperties {
 	const style: Record< string, string > = {};
-	if ( colors.accent ) style[ '--ac-accent' ] = colors.accent;
-	if ( colors.background ) style[ '--ac-bg' ] = colors.background;
-	if ( colors.user_bubble ) style[ '--ac-user-bubble' ] = colors.user_bubble;
-	if ( colors.assistant_bubble ) style[ '--ac-assistant-bubble' ] = colors.assistant_bubble;
+	if ( colors.accent ) {
+		style[ '--ac-accent' ] = colors.accent;
+	}
+	if ( colors.background ) {
+		style[ '--ac-bg' ] = colors.background;
+	}
+	if ( colors.user_bubble ) {
+		style[ '--ac-user-bubble' ] = colors.user_bubble;
+	}
+	if ( colors.assistant_bubble ) {
+		style[ '--ac-assistant-bubble' ] = colors.assistant_bubble;
+	}
 	return style as React.CSSProperties;
 }
 
 function SourceCards( { sources }: { sources: Source[] } ) {
-	if ( ! sources.length ) return null;
+	if ( ! sources.length ) {
+		return null;
+	}
 	return (
 		<div className="sources">
 			{ sources.map( ( s, i ) =>
@@ -140,8 +194,12 @@ function SourceCards( { sources }: { sources: Source[] } ) {
 						target="_blank"
 						rel="noopener noreferrer"
 					>
-						{ s.image && <img src={ s.image } alt="" loading="lazy" /> }
-						<span className="source__title">{ s.title || s.url }</span>
+						{ s.image && (
+							<img src={ s.image } alt="" loading="lazy" />
+						) }
+						<span className="source__title">
+							{ s.title || s.url }
+						</span>
 					</a>
 				) : null
 			) }
@@ -201,7 +259,9 @@ function ContactForm( {
 				submit();
 			} }
 		>
-			<div className="contact-form__title">{ client.contactCtaLabel }</div>
+			<div className="contact-form__title">
+				{ client.contactCtaLabel }
+			</div>
 			<input
 				type="text"
 				placeholder={ client.strings.nameLabel }
@@ -238,7 +298,9 @@ function ContactForm( {
 				<button
 					type="submit"
 					className="contact-form__submit"
-					disabled={ busy || ! name.trim() || ! email || ! message.trim() }
+					disabled={
+						busy || ! name.trim() || ! email || ! message.trim()
+					}
 				>
 					{ client.strings.submit }
 				</button>
@@ -280,10 +342,15 @@ function ChatPanel( {
 
 	async function send( content: string ) {
 		const trimmed = content.trim();
-		if ( ! trimmed || busy ) return;
+		if ( ! trimmed || busy ) {
+			return;
+		}
 		setError( null );
 		setBusy( true );
-		setMessages( ( c ) => [ ...c, { id: uid(), role: 'user', content: trimmed } ] );
+		setMessages( ( c ) => [
+			...c,
+			{ id: uid(), role: 'user', content: trimmed },
+		] );
 		setInput( '' );
 
 		try {
@@ -297,7 +364,9 @@ function ChatPanel( {
 				} ),
 			} );
 			const raw = await response.text();
-			const data = raw ? ( JSON.parse( raw ) as ChatResponse | { message?: string } ) : null;
+			const data = raw
+				? ( JSON.parse( raw ) as ChatResponse | { message?: string } )
+				: null;
 			if ( ! response.ok || ! data || ! ( 'reply' in data ) ) {
 				throw new Error(
 					( data && 'message' in data && data.message ) ||
@@ -317,7 +386,9 @@ function ChatPanel( {
 				{
 					id: uid(),
 					role: 'assistant',
-					content: stripCitations( data.reply || client.fallbackMessage ),
+					content: stripCitations(
+						data.reply || client.fallbackMessage
+					),
 					sources: data.sources ?? [],
 				},
 			] );
@@ -325,7 +396,11 @@ function ChatPanel( {
 			setError( e instanceof Error ? e.message : String( e ) );
 			setMessages( ( c ) => [
 				...c,
-				{ id: uid(), role: 'assistant', content: client.fallbackMessage },
+				{
+					id: uid(),
+					role: 'assistant',
+					content: client.fallbackMessage,
+				},
 			] );
 		} finally {
 			setBusy( false );
@@ -339,20 +414,30 @@ function ChatPanel( {
 		} catch {
 			/* ignore */
 		}
-		setMessages( [ { id: uid(), role: 'assistant', content: client.welcomeMessage } ] );
+		setMessages( [
+			{ id: uid(), role: 'assistant', content: client.welcomeMessage },
+		] );
 		setError( null );
 		setShowContact( false );
 	}
 
 	const hasExchange = messages.length > 1;
-	const showContactCta = client.contactFormEnabled && hasExchange && ! showContact;
+	const showContactCta =
+		client.contactFormEnabled && hasExchange && ! showContact;
 
 	return (
 		<>
 			<div className="header">
-				<span className="header__title">{ client.brandName || 'Alpha Chat' }</span>
+				<span className="header__title">
+					{ client.brandName || 'Alpha Chat' }
+				</span>
 				<div className="header__actions">
-					<button type="button" className="header__btn" onClick={ reset } disabled={ busy }>
+					<button
+						type="button"
+						className="header__btn"
+						onClick={ reset }
+						disabled={ busy }
+					>
 						{ client.strings.reset }
 					</button>
 					{ onClose && (
@@ -373,7 +458,9 @@ function ChatPanel( {
 				{ messages.map( ( m ) => (
 					<div key={ m.id } className={ `msg is-${ m.role }` }>
 						<div className="bubble">{ m.content }</div>
-						{ m.role === 'assistant' && m.sources && <SourceCards sources={ m.sources } /> }
+						{ m.role === 'assistant' && m.sources && (
+							<SourceCards sources={ m.sources } />
+						) }
 					</div>
 				) ) }
 				{ busy && (
@@ -451,7 +538,10 @@ function FloatingWidget( { client }: { client: ClientData } ) {
 		<div className="root" style={ cssVarStyle( client.colors ?? {} ) }>
 			{ open && (
 				<div className={ `panel pos-${ position }` }>
-					<ChatPanel client={ client } onClose={ () => setOpen( false ) } />
+					<ChatPanel
+						client={ client }
+						onClose={ () => setOpen( false ) }
+					/>
 				</div>
 			) }
 			{ ! open && (
@@ -466,7 +556,9 @@ function FloatingWidget( { client }: { client: ClientData } ) {
 							<span className="nudge__icon">
 								<ChatIcon />
 							</span>
-							<span className="nudge__text">{ client.launcherNudge }</span>
+							<span className="nudge__text">
+								{ client.launcherNudge }
+							</span>
 							<span className="nudge__arrow">
 								<ArrowUpIcon />
 							</span>
@@ -497,10 +589,14 @@ function InlineWidget( { client }: { client: ClientData } ) {
 }
 
 function mountShadow( host: HTMLElement, component: React.ReactElement ) {
-	if ( host.dataset.alphaChatMounted === '1' ) return;
+	if ( host.dataset.alphaChatMounted === '1' ) {
+		return;
+	}
 	host.dataset.alphaChatMounted = '1';
 
-	const shadow = host.attachShadow ? host.attachShadow( { mode: 'open' } ) : null;
+	const shadow = host.attachShadow
+		? host.attachShadow( { mode: 'open' } )
+		: null;
 	if ( ! shadow ) {
 		createRoot( host ).render( component );
 		return;
@@ -517,15 +613,21 @@ function mountShadow( host: HTMLElement, component: React.ReactElement ) {
 
 domReady( () => {
 	const client = window.alphaChatClient;
-	if ( ! client ) return;
+	if ( ! client ) {
+		return;
+	}
 
 	const inlineHosts = Array.from(
 		document.querySelectorAll< HTMLElement >( '[data-alpha-chat-embed]' )
 	);
 
-	inlineHosts.forEach( ( host ) => mountShadow( host, <InlineWidget client={ client } /> ) );
+	inlineHosts.forEach( ( host ) =>
+		mountShadow( host, <InlineWidget client={ client } /> )
+	);
 
-	if ( inlineHosts.length > 0 ) return;
+	if ( inlineHosts.length > 0 ) {
+		return;
+	}
 
 	let host = document.getElementById( 'alpha-chat-widget-root' );
 	if ( ! host ) {
