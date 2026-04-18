@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-04-18
+
+### Changed
+- System prompt no longer restricts the assistant to "context only" knowledge. The LLM can now draw on general knowledge to explain, clarify, or summarize when retrieval is thin.
+- Every chat request injects the current page (URL, title, up to 4,000 chars of post content via `url_to_postid()`) into the system prompt so "explain this", "summarize this article", and similar queries work without vector-store hits.
+
 ## [0.1.5] - 2026-04-17
 
 ### Added

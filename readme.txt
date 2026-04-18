@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.1.5
+Stable tag: 0.1.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,10 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.1.6 =
+* Removed the "outside knowledge is forbidden" restriction from the system prompt. The assistant now answers freely, falling back to general knowledge when the retrieved site context is thin.
+* Every chat request injects the current page (URL, title, and up to 4,000 chars of content) into the prompt. "Explain this", "summarize this page", "what is this article about" now work without needing retrieval to match.
 
 = 0.1.5 =
 * Conversations now record the page URL the chat was started from. Visible in the Conversations admin tab and included in CSV exports.

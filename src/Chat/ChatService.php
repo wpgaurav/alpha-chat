@@ -82,9 +82,9 @@ final class ChatService {
 		$chunks = self::enrich_chunks( (array) apply_filters( 'alpha_chat_retrieved_chunks', $chunks, $message ) );
 		$faqs   = $this->faqs->all( true );
 
-		$history  = $this->messages->for_thread( $thread_id, 12 );
-		$fallback = (string) $this->settings->get( 'fallback_message', '' );
-		$prompt   = $this->build_messages( $message, $chunks, $faqs, $history, $fallback );
+		$current_page = self::resolve_current_page( $origin_url );
+		$history      = $this->messages->for_thread( $thread_id, 12 );
+		$prompt       = $this->build_messages( $message, $chunks, $faqs, $history, $current_page );
 
 		$options = [
 			'temperature' => (float) $this->settings->get( 'temperature', 0.7 ),
@@ -144,21 +144,30 @@ final class ChatService {
 	 *
 	 * @return list<array{role: string, content: string}>
 	 */
-	private function build_messages( string $message, array $chunks, array $faqs, array $history, string $fallback = '' ): array {
+	private function build_messages( string $message, array $chunks, array $faqs, array $history, ?array $current_page = null ): array {
 		$brand    = (string) $this->settings->get( 'brand_name', (string) get_bloginfo( 'name' ) );
 		$identity = sprintf(
-			"You are the AI assistant for %s. If someone asks who you are, what this chat is, or similar, explain that you are %s's AI helper that answers questions based on the site's content and curated Q&A. Do not invent a human name or claim to be a person. Do not use outside knowledge beyond the context provided below.",
+			"You are the AI assistant for %s. If someone asks who you are, what this chat is, or similar, explain that you are %s's AI helper. Do not invent a human name or claim to be a person.",
 			$brand,
 			$brand
 		);
 
-		$conversational = "Conversational replies are welcome: if the user is greeting you, thanking you, saying goodbye, or making small talk, respond naturally in one short sentence — do not refuse or use the fallback message for these.";
-		if ( '' !== trim( $fallback ) ) {
-			$conversational .= sprintf( " Reserve this exact fallback for genuine factual questions you cannot answer from the provided context or Q&A: \"%s\"", trim( $fallback ) );
-		}
+		$behaviour = "Answer helpfully and concisely. Prefer the curated Q&A, the current page the user is viewing, and the retrieved site context below — but you are free to draw on general knowledge to explain, clarify, or summarize when the context is thin. Respond naturally to greetings, thanks, goodbyes, and small talk. Never refuse a reasonable question; if you genuinely do not know something, say so in your own words.";
 
 		$system_setting = trim( (string) $this->settings->get( 'system_prompt', '' ) );
-		$system         = $identity . "\n\n" . $conversational . ( '' !== $system_setting ? "\n\n" . $system_setting : '' );
+		$system         = $identity . "\n\n" . $behaviour . ( '' !== $system_setting ? "\n\n" . $system_setting : '' );
+
+		if ( null !== $current_page && '' !== (string) $current_page['url'] ) {
+			$system .= "\n\nCurrent page the user is viewing:\n";
+			$system .= 'URL: ' . $current_page['url'] . "\n";
+			if ( '' !== (string) $current_page['title'] ) {
+				$system .= 'Title: ' . $current_page['title'] . "\n";
+			}
+			if ( '' !== (string) $current_page['content'] ) {
+				$system .= "Content:\n" . $current_page['content'] . "\n";
+			}
+			$system .= 'When the user says "this", "this page", "this article", or similar, assume they mean the page above.';
+		}
 
 		if ( ! empty( $faqs ) ) {
 			$faq_block = "Curated Q&A (authoritative — use these verbatim when the user's question matches):\n\n";
@@ -169,9 +178,7 @@ final class ChatService {
 		}
 
 		if ( ! empty( $chunks ) ) {
-			$context  = "Numbered site context. Ground every factual claim in these passages and do not invent sources.\n";
-			$context .= "When the context covers the topic, answer in 2–5 short sentences.\n";
-			$context .= "When it doesn't, say so briefly in your own words.\n";
+			$context  = "Numbered site context. Prefer these passages for factual claims about the site; when they cover the topic, answer in 2–5 short sentences. When they don't, still help the user using general knowledge or the current page above — do not invent links or sources.\n";
 			$context .= "Do NOT include bracketed citation markers like [1] or [2] in your reply — the UI renders source links separately.\n\n";
 			foreach ( $chunks as $i => $chunk ) {
 				$meta  = (array) ( $chunk['metadata'] ?? [] );
@@ -205,6 +212,52 @@ final class ChatService {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Resolve the user's current page URL to a lightweight title/content block
+	 * the LLM can reference for "this page", "explain this", etc.
+	 *
+	 * @return array{url: string, title: string, content: string}|null
+	 */
+	private static function resolve_current_page( string $origin_url ): ?array {
+		$origin_url = trim( $origin_url );
+		if ( '' === $origin_url ) {
+			return null;
+		}
+
+		$post_id = (int) url_to_postid( $origin_url );
+		if ( $post_id <= 0 ) {
+			return [
+				'url'     => $origin_url,
+				'title'   => '',
+				'content' => '',
+			];
+		}
+
+		$post = get_post( $post_id );
+		if ( null === $post || 'publish' !== $post->post_status ) {
+			return [
+				'url'     => $origin_url,
+				'title'   => '',
+				'content' => '',
+			];
+		}
+
+		$raw     = (string) $post->post_content;
+		$raw     = strip_shortcodes( $raw );
+		$raw     = wp_strip_all_tags( $raw );
+		$raw     = preg_replace( '/\s+/u', ' ', $raw ) ?? $raw;
+		$content = trim( $raw );
+		if ( mb_strlen( $content ) > 4000 ) {
+			$content = mb_substr( $content, 0, 4000 ) . '…';
+		}
+
+		return [
+			'url'     => (string) get_permalink( $post_id ),
+			'title'   => (string) get_the_title( $post_id ),
+			'content' => $content,
+		];
 	}
 
 	/**
