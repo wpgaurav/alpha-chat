@@ -19,6 +19,7 @@
 	}
 
 	&__tabs {
+
 		.components-tab-panel__tabs {
 			border-block-end: 1px solid var(--ac-border);
 			margin-block-end: 1.5rem;
@@ -123,6 +124,7 @@
 }
 
 .alpha-chat-presets {
+
 	.components-button {
 		flex: 1;
 		justify-content: center;
@@ -280,6 +282,7 @@
 
 /* Dashboard */
 .alpha-chat-sparkline {
+
 	table {
 		width: 100%;
 		border-collapse: collapse;
@@ -353,6 +356,7 @@
 }
 
 .alpha-chat-threads {
+
 	&__toolbar {
 		margin-block-end: 0.5rem;
 	}

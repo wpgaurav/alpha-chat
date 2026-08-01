@@ -136,11 +136,13 @@ final class KnowledgeBaseController {
 
 		$indexed = (string) $request->get_param( 'indexed' );
 		$chunks_table = esc_sql( Schema::chunks_table() );
+		$ids = [ 0 ];
 
 		if ( 'yes' === $indexed || 'no' === $indexed ) {
 			$ids = $wpdb->get_col(
 				$wpdb->prepare(
-					'SELECT DISTINCT source_id FROM ' . $chunks_table . ' WHERE source_type = %s',
+					'SELECT DISTINCT source_id FROM %i WHERE source_type = %s',
+					$chunks_table,
 					'post'
 				)
 			); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
@@ -175,7 +177,8 @@ final class KnowledgeBaseController {
 			}
 			$chunks = (int) $wpdb->get_var(
 				$wpdb->prepare(
-					'SELECT COUNT(*) FROM ' . $chunks_table . ' WHERE source_type = %s AND source_id = %d',
+					'SELECT COUNT(*) FROM %i WHERE source_type = %s AND source_id = %d',
+					$chunks_table,
 					'post',
 					$post->ID
 				)
@@ -282,7 +285,12 @@ final class KnowledgeBaseController {
 			]
 		);
 
-		$ids = array_map( 'intval', (array) $query->posts );
+		$ids = [];
+		foreach ( (array) $query->posts as $post_id ) {
+			if ( is_numeric( $post_id ) ) {
+				$ids[] = (int) $post_id;
+			}
+		}
 		foreach ( $ids as $id ) {
 			$this->scheduler->queue_index( $id );
 		}
@@ -303,9 +311,10 @@ final class KnowledgeBaseController {
 
 		try {
 			$runner = \ActionScheduler::runner();
-			if ( method_exists( $runner, 'run' ) ) {
-				$runner->run( 'Alpha Chat manual' );
+			if ( ! is_object( $runner ) || ! method_exists( $runner, 'run' ) ) {
+				throw new \RuntimeException( 'Action Scheduler runner is unavailable.' );
 			}
+			$runner->run( 'Alpha Chat manual' );
 		} catch ( \Throwable $e ) {
 			return new WP_Error( 'alpha_chat_runner_failed', $e->getMessage(), [ 'status' => 500 ] );
 		}
@@ -332,10 +341,11 @@ final class KnowledgeBaseController {
 
 		$group_id = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT group_id FROM {$groups_table} WHERE slug = %s",
+				'SELECT group_id FROM %i WHERE slug = %s',
+				$groups_table,
 				'alpha-chat'
 			)
-		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
 		if ( ! $group_id ) {
 			return [ 'pending' => 0, 'in_progress' => 0, 'complete' => 0, 'failed' => 0 ];
@@ -343,11 +353,12 @@ final class KnowledgeBaseController {
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT status, COUNT(*) AS c FROM {$actions_table} WHERE group_id = %d GROUP BY status",
+				'SELECT status, COUNT(*) AS c FROM %i WHERE group_id = %d GROUP BY status',
+				$actions_table,
 				(int) $group_id
 			),
 			ARRAY_A
-		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
 		$out = [ 'pending' => 0, 'in_progress' => 0, 'complete' => 0, 'failed' => 0 ];
 		foreach ( (array) $rows as $row ) {

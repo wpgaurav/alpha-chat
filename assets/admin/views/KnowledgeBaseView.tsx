@@ -23,15 +23,20 @@ export function KnowledgeBaseView() {
 	const [ page, setPage ] = useState( 1 );
 	const [ search, setSearch ] = useState( '' );
 	const [ postType, setPostType ] = useState( 'any' );
-	const [ postTypes, setPostTypes ] = useState< { label: string; value: string }[] >( [
-		{ label: __( 'Any', 'alpha-chat' ), value: 'any' },
-	] );
-	const [ indexedFilter, setIndexedFilter ] = useState< 'any' | 'yes' | 'no' >( 'any' );
+	const [ postTypes, setPostTypes ] = useState<
+		{ label: string; value: string }[]
+	>( [ { label: __( 'Any', 'alpha-chat' ), value: 'any' } ] );
+	const [ indexedFilter, setIndexedFilter ] = useState<
+		'any' | 'yes' | 'no'
+	>( 'any' );
 	const [ loading, setLoading ] = useState( true );
 	const [ working, setWorking ] = useState< Record< number, boolean > >( {} );
 	const [ selected, setSelected ] = useState< Set< number > >( new Set() );
 	const [ bulkBusy, setBulkBusy ] = useState( false );
-	const [ notice, setNotice ] = useState< { status: 'success' | 'error'; message: string } | null >( null );
+	const [ notice, setNotice ] = useState< {
+		status: 'success' | 'error';
+		message: string;
+	} | null >( null );
 
 	const load = useCallback( async () => {
 		setLoading( true );
@@ -48,7 +53,8 @@ export function KnowledgeBaseView() {
 			setTotalPages( Math.max( 1, result.total_pages ) );
 			setSelected( new Set() );
 		} catch ( error ) {
-			const message = error instanceof Error ? error.message : String( error );
+			const message =
+				error instanceof Error ? error.message : String( error );
 			setNotice( { status: 'error', message } );
 		} finally {
 			setLoading( false );
@@ -87,13 +93,17 @@ export function KnowledgeBaseView() {
 			await adminApi.addToKnowledgeBase( postId );
 			setNotice( {
 				status: 'success',
-				message: __( 'Indexing queued. It will finish in the background.', 'alpha-chat' ),
+				message: __(
+					'Indexing queued. It will finish in the background.',
+					'alpha-chat'
+				),
 			} );
 			await load();
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error instanceof Error ? error.message : String( error ),
+				message:
+					error instanceof Error ? error.message : String( error ),
 			} );
 		} finally {
 			setBusy( postId, false );
@@ -105,12 +115,16 @@ export function KnowledgeBaseView() {
 		setNotice( null );
 		try {
 			await adminApi.removeFromKnowledgeBase( postId );
-			setNotice( { status: 'success', message: __( 'Removed from knowledge base.', 'alpha-chat' ) } );
+			setNotice( {
+				status: 'success',
+				message: __( 'Removed from knowledge base.', 'alpha-chat' ),
+			} );
 			await load();
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error instanceof Error ? error.message : String( error ),
+				message:
+					error instanceof Error ? error.message : String( error ),
 			} );
 		} finally {
 			setBusy( postId, false );
@@ -132,7 +146,8 @@ export function KnowledgeBaseView() {
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error instanceof Error ? error.message : String( error ),
+				message:
+					error instanceof Error ? error.message : String( error ),
 			} );
 		}
 	}
@@ -146,7 +161,10 @@ export function KnowledgeBaseView() {
 				status: 'success',
 				message: sprintf(
 					/* translators: 1: processed, 2: pending */
-					__( 'Processed %1$d action(s). %2$d still pending.', 'alpha-chat' ),
+					__(
+						'Processed %1$d action(s). %2$d still pending.',
+						'alpha-chat'
+					),
 					result.processed,
 					result.after.pending
 				),
@@ -155,7 +173,8 @@ export function KnowledgeBaseView() {
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error instanceof Error ? error.message : String( error ),
+				message:
+					error instanceof Error ? error.message : String( error ),
 			} );
 		} finally {
 			setBulkBusy( false );
@@ -171,7 +190,10 @@ export function KnowledgeBaseView() {
 				status: 'success',
 				message: sprintf(
 					/* translators: %d is the number of items queued */
-					__( 'Queued %d remaining item(s) for indexing.', 'alpha-chat' ),
+					__(
+						'Queued %d remaining item(s) for indexing.',
+						'alpha-chat'
+					),
 					result.queued
 				),
 			} );
@@ -179,7 +201,8 @@ export function KnowledgeBaseView() {
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error instanceof Error ? error.message : String( error ),
+				message:
+					error instanceof Error ? error.message : String( error ),
 			} );
 		} finally {
 			setBulkBusy( false );
@@ -188,7 +211,9 @@ export function KnowledgeBaseView() {
 
 	async function runBulk( action: 'add' | 'remove' ) {
 		const ids = Array.from( selected );
-		if ( ids.length === 0 ) return;
+		if ( ids.length === 0 ) {
+			return;
+		}
 		setBulkBusy( true );
 		setNotice( null );
 		try {
@@ -198,22 +223,26 @@ export function KnowledgeBaseView() {
 				message:
 					action === 'add'
 						? sprintf(
-							/* translators: %d: number queued */
-							__( 'Queued %d item(s) for indexing.', 'alpha-chat' ),
-							result.queued
-						)
+								/* translators: %d: number queued */
+								__(
+									'Queued %d item(s) for indexing.',
+									'alpha-chat'
+								),
+								result.queued
+						  )
 						: sprintf(
-							/* translators: %d: number removed */
-							__( 'Removed %d item(s).', 'alpha-chat' ),
-							result.removed
-						),
+								/* translators: %d: number removed */
+								__( 'Removed %d item(s).', 'alpha-chat' ),
+								result.removed
+						  ),
 			} );
 			setSelected( new Set() );
 			await load();
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error instanceof Error ? error.message : String( error ),
+				message:
+					error instanceof Error ? error.message : String( error ),
 			} );
 		} finally {
 			setBulkBusy( false );
@@ -234,7 +263,9 @@ export function KnowledgeBaseView() {
 
 	function toggleAll() {
 		setSelected( ( prev ) => {
-			if ( prev.size === items.length ) return new Set();
+			if ( prev.size === items.length ) {
+				return new Set();
+			}
 			return new Set( items.map( ( item ) => item.id ) );
 		} );
 	}
@@ -242,7 +273,10 @@ export function KnowledgeBaseView() {
 	return (
 		<div className="alpha-chat-kb">
 			{ notice && (
-				<Notice status={ notice.status } onRemove={ () => setNotice( null ) }>
+				<Notice
+					status={ notice.status }
+					onRemove={ () => setNotice( null ) }
+				>
 					{ notice.message }
 				</Notice>
 			) }
@@ -279,13 +313,27 @@ export function KnowledgeBaseView() {
 								label={ __( 'Indexed', 'alpha-chat' ) }
 								value={ indexedFilter }
 								options={ [
-									{ label: __( 'All', 'alpha-chat' ), value: 'any' },
-									{ label: __( 'Not indexed', 'alpha-chat' ), value: 'no' },
-									{ label: __( 'Indexed', 'alpha-chat' ), value: 'yes' },
+									{
+										label: __( 'All', 'alpha-chat' ),
+										value: 'any',
+									},
+									{
+										label: __(
+											'Not indexed',
+											'alpha-chat'
+										),
+										value: 'no',
+									},
+									{
+										label: __( 'Indexed', 'alpha-chat' ),
+										value: 'yes',
+									},
 								] }
 								onChange={ ( value ) => {
 									setPage( 1 );
-									setIndexedFilter( value as 'any' | 'yes' | 'no' );
+									setIndexedFilter(
+										value as 'any' | 'yes' | 'no'
+									);
 								} }
 							/>
 						</FlexItem>
@@ -308,7 +356,10 @@ export function KnowledgeBaseView() {
 								variant="tertiary"
 								onClick={ processQueue }
 								isBusy={ bulkBusy }
-								help={ __( 'Run one Action Scheduler batch now.', 'alpha-chat' ) }
+								help={ __(
+									'Run one Action Scheduler batch now.',
+									'alpha-chat'
+								) }
 							>
 								{ __( 'Process queue now', 'alpha-chat' ) }
 							</Button>
@@ -350,7 +401,10 @@ export function KnowledgeBaseView() {
 								</Button>
 							</FlexItem>
 							<FlexItem>
-								<Button variant="tertiary" onClick={ () => setSelected( new Set() ) }>
+								<Button
+									variant="tertiary"
+									onClick={ () => setSelected( new Set() ) }
+								>
 									{ __( 'Clear', 'alpha-chat' ) }
 								</Button>
 							</FlexItem>
@@ -370,9 +424,15 @@ export function KnowledgeBaseView() {
 									<th style={ { width: 32 } }>
 										<input
 											type="checkbox"
-											checked={ items.length > 0 && selected.size === items.length }
+											checked={
+												items.length > 0 &&
+												selected.size === items.length
+											}
 											onChange={ toggleAll }
-											aria-label={ __( 'Select all on page', 'alpha-chat' ) }
+											aria-label={ __(
+												'Select all on page',
+												'alpha-chat'
+											) }
 										/>
 									</th>
 									<th>{ __( 'Title', 'alpha-chat' ) }</th>
@@ -380,30 +440,57 @@ export function KnowledgeBaseView() {
 									<th>{ __( 'Status', 'alpha-chat' ) }</th>
 									<th>{ __( 'Chunks', 'alpha-chat' ) }</th>
 									<th>{ __( 'Indexed', 'alpha-chat' ) }</th>
-									<th aria-label={ __( 'Actions', 'alpha-chat' ) } />
+									<th
+										aria-label={ __(
+											'Actions',
+											'alpha-chat'
+										) }
+									/>
 								</tr>
 							</thead>
 							<tbody>
 								{ items.length === 0 && (
 									<tr>
 										<td colSpan={ 7 }>
-											{ __( 'No posts match.', 'alpha-chat' ) }
+											{ __(
+												'No posts match.',
+												'alpha-chat'
+											) }
 										</td>
 									</tr>
 								) }
 								{ items.map( ( item ) => (
-									<tr key={ item.id } className={ selected.has( item.id ) ? 'is-selected' : '' }>
+									<tr
+										key={ item.id }
+										className={
+											selected.has( item.id )
+												? 'is-selected'
+												: ''
+										}
+									>
 										<td>
 											<input
 												type="checkbox"
-												checked={ selected.has( item.id ) }
-												onChange={ () => toggleOne( item.id ) }
+												checked={ selected.has(
+													item.id
+												) }
+												onChange={ () =>
+													toggleOne( item.id )
+												}
 												aria-label={ item.title }
 											/>
 										</td>
 										<td>
-											<a href={ item.url } target="_blank" rel="noreferrer">
-												{ item.title || __( '(no title)', 'alpha-chat' ) }
+											<a
+												href={ item.url }
+												target="_blank"
+												rel="noreferrer"
+											>
+												{ item.title ||
+													__(
+														'(no title)',
+														'alpha-chat'
+													) }
 											</a>
 											{ item.index_error && (
 												<div className="alpha-chat-row-error">
@@ -416,7 +503,9 @@ export function KnowledgeBaseView() {
 										<td>{ item.chunk_count }</td>
 										<td>
 											{ item.indexed
-												? new Date( item.last_indexed * 1000 ).toLocaleString()
+												? new Date(
+														item.last_indexed * 1000
+												  ).toLocaleString()
 												: '—' }
 										</td>
 										<td>
@@ -424,18 +513,32 @@ export function KnowledgeBaseView() {
 												<Button
 													variant="tertiary"
 													isDestructive
-													isBusy={ !! working[ item.id ] }
-													onClick={ () => removeItem( item.id ) }
+													isBusy={
+														!! working[ item.id ]
+													}
+													onClick={ () =>
+														removeItem( item.id )
+													}
 												>
-													{ __( 'Remove', 'alpha-chat' ) }
+													{ __(
+														'Remove',
+														'alpha-chat'
+													) }
 												</Button>
 											) : (
 												<Button
 													variant="secondary"
-													isBusy={ !! working[ item.id ] }
-													onClick={ () => addItem( item.id ) }
+													isBusy={
+														!! working[ item.id ]
+													}
+													onClick={ () =>
+														addItem( item.id )
+													}
 												>
-													{ __( 'Add', 'alpha-chat' ) }
+													{ __(
+														'Add',
+														'alpha-chat'
+													) }
 												</Button>
 											) }
 										</td>
@@ -447,7 +550,11 @@ export function KnowledgeBaseView() {
 				</CardBody>
 			</Card>
 
-			<Flex justify="space-between" align="center" className="alpha-chat-pagination">
+			<Flex
+				justify="space-between"
+				align="center"
+				className="alpha-chat-pagination"
+			>
 				<FlexItem>
 					{ sprintf(
 						/* translators: 1: current page, 2: total pages, 3: total items */
@@ -461,14 +568,20 @@ export function KnowledgeBaseView() {
 					<Button
 						variant="secondary"
 						disabled={ page <= 1 }
-						onClick={ () => setPage( ( current ) => Math.max( 1, current - 1 ) ) }
+						onClick={ () =>
+							setPage( ( current ) => Math.max( 1, current - 1 ) )
+						}
 					>
 						{ __( 'Previous', 'alpha-chat' ) }
 					</Button>{ ' ' }
 					<Button
 						variant="secondary"
 						disabled={ page >= totalPages }
-						onClick={ () => setPage( ( current ) => Math.min( totalPages, current + 1 ) ) }
+						onClick={ () =>
+							setPage( ( current ) =>
+								Math.min( totalPages, current + 1 )
+							)
+						}
 					>
 						{ __( 'Next', 'alpha-chat' ) }
 					</Button>

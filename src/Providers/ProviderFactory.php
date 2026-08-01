@@ -80,6 +80,7 @@ final class ProviderFactory {
 	private function require_secret( string $key, string $label ): string {
 		$value = (string) $this->settings->get( $key, '' );
 		if ( '' === $value ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not HTML output.
 			throw new RuntimeException( sprintf( '%s API key is not configured.', $label ) );
 		}
 		return $value;

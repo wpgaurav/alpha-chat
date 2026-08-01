@@ -75,7 +75,10 @@ final class ChatController {
 	}
 
 	private static function session_hash( WP_REST_Request $request ): string {
-		$ip = (string) ( $request->get_header( 'X-Forwarded-For' ) ?: $_SERVER['REMOTE_ADDR'] ?? '' );
+		$remote_addr = isset( $_SERVER['REMOTE_ADDR'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
+			: '';
+		$ip = (string) ( $request->get_header( 'X-Forwarded-For' ) ?: $remote_addr );
 		$ua = (string) $request->get_header( 'User-Agent' );
 		return hash( 'sha256', $ip . '|' . $ua . '|' . wp_salt( 'auth' ) );
 	}

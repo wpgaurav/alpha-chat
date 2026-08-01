@@ -16,6 +16,7 @@ use AlphaChat\Frontend\WidgetLoader;
 use AlphaChat\Http\HttpClient;
 use AlphaChat\KnowledgeBase\Indexer;
 use AlphaChat\KnowledgeBase\PostHooks;
+use AlphaChat\Licensing\LicenseManager;
 use AlphaChat\Providers\ProviderFactory;
 use AlphaChat\REST\ChatController;
 use AlphaChat\REST\ContactController;
@@ -63,6 +64,7 @@ final class Plugin {
 		$this->container->get( PostHooks::class )->register();
 		$this->container->get( BlockRegistrar::class )->register( $this->container->get( WidgetLoader::class ) );
 		$this->container->get( WidgetLoader::class )->register();
+		$this->container->get( LicenseManager::class )->register();
 
 		if ( is_admin() ) {
 			$this->container->get( AdminMenu::class )->register();
@@ -82,6 +84,7 @@ final class Plugin {
 		$c->set( TokenCounter::class, static fn () => new TokenCounter() );
 		$c->set( HttpClient::class, static fn () => new HttpClient() );
 		$c->set( SettingsRepository::class, static fn () => new SettingsRepository() );
+		$c->set( LicenseManager::class, static fn () => new LicenseManager() );
 
 		$c->set(
 			ProviderFactory::class,

@@ -1,6 +1,6 @@
 .alpha-chat-widget {
 	--alpha-chat-accent: #2271b1;
-	--alpha-chat-bg: #ffffff;
+	--alpha-chat-bg: #fff;
 	--alpha-chat-fg: #1e1e1e;
 	--alpha-chat-user-bubble: var(--alpha-chat-accent);
 	--alpha-chat-assistant-bubble: #f1f3f4;
@@ -85,6 +85,11 @@
 		gap: 0.25rem;
 	}
 
+	&__close {
+		font-size: 1.25rem;
+		line-height: 1;
+	}
+
 	&__reset,
 	&__close {
 		background: transparent;
@@ -95,19 +100,14 @@
 		padding: 0.25rem 0.5rem;
 		border-radius: 4px;
 
-		&:hover:not(:disabled) {
-			background: rgba(255, 255, 255, 0.15);
-		}
-
 		&:disabled {
 			opacity: 0.5;
 			cursor: not-allowed;
 		}
-	}
 
-	&__close {
-		font-size: 1.25rem;
-		line-height: 1;
+		&:hover:not(:disabled) {
+			background: rgba(255, 255, 255, 0.15);
+		}
 	}
 
 	&__log {
@@ -226,14 +226,14 @@
 			font-size: 0.8rem;
 			cursor: pointer;
 
-			&:hover:not(:disabled) {
-				background: var(--alpha-chat-accent);
-				color: #fff;
-			}
-
 			&:disabled {
 				opacity: 0.5;
 				cursor: not-allowed;
+			}
+
+			&:hover:not(:disabled) {
+				background: var(--alpha-chat-accent);
+				color: #fff;
 			}
 		}
 	}

@@ -22,7 +22,10 @@ export function ThreadsView() {
 	const [ selected, setSelected ] = useState< Thread | null >( null );
 	const [ messages, setMessages ] = useState< Message[] >( [] );
 	const [ messagesLoading, setMessagesLoading ] = useState( false );
-	const [ notice, setNotice ] = useState< { status: 'success' | 'error'; message: string } | null >( null );
+	const [ notice, setNotice ] = useState< {
+		status: 'success' | 'error';
+		message: string;
+	} | null >( null );
 
 	const load = useCallback( async () => {
 		setLoading( true );
@@ -33,7 +36,8 @@ export function ThreadsView() {
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error instanceof Error ? error.message : String( error ),
+				message:
+					error instanceof Error ? error.message : String( error ),
 			} );
 		} finally {
 			setLoading( false );
@@ -54,7 +58,8 @@ export function ThreadsView() {
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error instanceof Error ? error.message : String( error ),
+				message:
+					error instanceof Error ? error.message : String( error ),
 			} );
 		} finally {
 			setMessagesLoading( false );
@@ -62,13 +67,20 @@ export function ThreadsView() {
 	}
 
 	async function deleteThread( thread: Thread ) {
-		// eslint-disable-next-line no-alert
-		if ( ! window.confirm( __( 'Delete this conversation permanently?', 'alpha-chat' ) ) ) {
+		if (
+			// eslint-disable-next-line no-alert
+			! window.confirm(
+				__( 'Delete this conversation permanently?', 'alpha-chat' )
+			)
+		) {
 			return;
 		}
 		try {
 			await adminApi.deleteThread( thread.id );
-			setNotice( { status: 'success', message: __( 'Conversation deleted.', 'alpha-chat' ) } );
+			setNotice( {
+				status: 'success',
+				message: __( 'Conversation deleted.', 'alpha-chat' ),
+			} );
 			if ( selected?.id === thread.id ) {
 				setSelected( null );
 				setMessages( [] );
@@ -77,20 +89,26 @@ export function ThreadsView() {
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error instanceof Error ? error.message : String( error ),
+				message:
+					error instanceof Error ? error.message : String( error ),
 			} );
 		}
 	}
 
 	const totalPages = Math.max( 1, Math.ceil( total / PER_PAGE ) );
-	const exportUrl = `${ window.alphaChatAdmin?.restUrl ?? '' }/threads/export?_wpnonce=${ encodeURIComponent(
+	const exportUrl = `${
+		window.alphaChatAdmin?.restUrl ?? ''
+	}/threads/export?_wpnonce=${ encodeURIComponent(
 		window.alphaChatAdmin?.restNonce ?? ''
 	) }`;
 
 	return (
 		<div className="alpha-chat-threads">
 			{ notice && (
-				<Notice status={ notice.status } onRemove={ () => setNotice( null ) }>
+				<Notice
+					status={ notice.status }
+					onRemove={ () => setNotice( null ) }
+				>
 					{ notice.message }
 				</Notice>
 			) }
@@ -113,16 +131,28 @@ export function ThreadsView() {
 								<thead>
 									<tr>
 										<th>{ __( 'Title', 'alpha-chat' ) }</th>
-										<th>{ __( 'Messages', 'alpha-chat' ) }</th>
-										<th>{ __( 'Updated', 'alpha-chat' ) }</th>
-										<th aria-label={ __( 'Actions', 'alpha-chat' ) } />
+										<th>
+											{ __( 'Messages', 'alpha-chat' ) }
+										</th>
+										<th>
+											{ __( 'Updated', 'alpha-chat' ) }
+										</th>
+										<th
+											aria-label={ __(
+												'Actions',
+												'alpha-chat'
+											) }
+										/>
 									</tr>
 								</thead>
 								<tbody>
 									{ threads.length === 0 && (
 										<tr>
 											<td colSpan={ 4 }>
-												{ __( 'No conversations yet.', 'alpha-chat' ) }
+												{ __(
+													'No conversations yet.',
+													'alpha-chat'
+												) }
 											</td>
 										</tr>
 									) }
@@ -138,9 +168,12 @@ export function ThreadsView() {
 											<td>
 												<Button
 													variant="link"
-													onClick={ () => openThread( thread ) }
+													onClick={ () =>
+														openThread( thread )
+													}
 												>
-													{ thread.title || thread.uuid }
+													{ thread.title ||
+														thread.uuid }
 												</Button>
 											</td>
 											<td>{ thread.message_count }</td>
@@ -149,9 +182,14 @@ export function ThreadsView() {
 												<Button
 													variant="tertiary"
 													isDestructive
-													onClick={ () => deleteThread( thread ) }
+													onClick={ () =>
+														deleteThread( thread )
+													}
 												>
-													{ __( 'Delete', 'alpha-chat' ) }
+													{ __(
+														'Delete',
+														'alpha-chat'
+													) }
 												</Button>
 											</td>
 										</tr>
@@ -165,7 +203,12 @@ export function ThreadsView() {
 				<Card className="alpha-chat-threads__detail">
 					<CardBody>
 						{ ! selected && (
-							<p>{ __( 'Select a conversation to view its messages.', 'alpha-chat' ) }</p>
+							<p>
+								{ __(
+									'Select a conversation to view its messages.',
+									'alpha-chat'
+								) }
+							</p>
 						) }
 						{ selected && (
 							<>
@@ -173,14 +216,17 @@ export function ThreadsView() {
 								<p className="alpha-chat-threads__meta">
 									{ sprintf(
 										/* translators: 1: created date, 2: uuid */
-										__( 'Started %1$s · %2$s', 'alpha-chat' ),
+										__(
+											'Started %1$s · %2$s',
+											'alpha-chat'
+										),
 										selected.created_at,
 										selected.uuid
 									) }
 								</p>
 								{ selected.origin_url && (
 									<p className="alpha-chat-threads__meta">
-										{ __( 'Started from: ', 'alpha-chat' ) }
+										{ __( 'Started from:', 'alpha-chat' ) }{ ' ' }
 										<a
 											href={ selected.origin_url }
 											target="_blank"
@@ -218,7 +264,11 @@ export function ThreadsView() {
 				</Card>
 			</div>
 
-			<Flex justify="space-between" align="center" className="alpha-chat-pagination">
+			<Flex
+				justify="space-between"
+				align="center"
+				className="alpha-chat-pagination"
+			>
 				<FlexItem>
 					{ sprintf(
 						/* translators: 1: current page, 2: total pages, 3: total items */
@@ -232,14 +282,20 @@ export function ThreadsView() {
 					<Button
 						variant="secondary"
 						disabled={ page <= 1 }
-						onClick={ () => setPage( ( current ) => Math.max( 1, current - 1 ) ) }
+						onClick={ () =>
+							setPage( ( current ) => Math.max( 1, current - 1 ) )
+						}
 					>
 						{ __( 'Previous', 'alpha-chat' ) }
 					</Button>{ ' ' }
 					<Button
 						variant="secondary"
 						disabled={ page >= totalPages }
-						onClick={ () => setPage( ( current ) => Math.min( totalPages, current + 1 ) ) }
+						onClick={ () =>
+							setPage( ( current ) =>
+								Math.min( totalPages, current + 1 )
+							)
+						}
 					>
 						{ __( 'Next', 'alpha-chat' ) }
 					</Button>

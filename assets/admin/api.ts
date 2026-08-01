@@ -11,7 +11,10 @@ type ApiInit = Omit< RequestInit, 'body' | 'headers' > & {
 };
 
 async function api< T >( path: string, init: ApiInit = {} ): Promise< T > {
-	const url = new URL( `${ alphaChatAdmin.restUrl }${ path }`, window.location.origin );
+	const url = new URL(
+		`${ alphaChatAdmin.restUrl }${ path }`,
+		window.location.origin
+	);
 	if ( init.query ) {
 		Object.entries( init.query ).forEach( ( [ key, value ] ) => {
 			if ( value === undefined ) {
@@ -36,7 +39,8 @@ async function api< T >( path: string, init: ApiInit = {} ): Promise< T > {
 	const data = raw ? JSON.parse( raw ) : null;
 
 	if ( ! response.ok ) {
-		const message = data?.message ?? `Request failed (${ response.status })`;
+		const message =
+			data?.message ?? `Request failed (${ response.status })`;
 		throw new Error( message );
 	}
 
@@ -153,7 +157,10 @@ export type ChartData = {
 export const adminApi = {
 	getSettings: () => api< SettingsResponse >( '/settings' ),
 	saveSettings: ( data: Partial< Settings > ) =>
-		api< SettingsResponse >( '/settings', { method: 'POST', body: { data } } ),
+		api< SettingsResponse >( '/settings', {
+			method: 'POST',
+			body: { data },
+		} ),
 	listKnowledgeBase: ( params: {
 		search?: string;
 		post_type?: string;
@@ -172,7 +179,9 @@ export const adminApi = {
 			{ method: 'DELETE' }
 		),
 	reindexAll: () =>
-		api< { queued: number } >( '/knowledge-base/reindex-all', { method: 'POST' } ),
+		api< { queued: number } >( '/knowledge-base/reindex-all', {
+			method: 'POST',
+		} ),
 	listPostTypes: () =>
 		api< { items: { slug: string; label: string }[] } >(
 			'/knowledge-base/post-types'
@@ -183,15 +192,30 @@ export const adminApi = {
 			body: { action, post_ids: postIds },
 		} ),
 	indexRemaining: () =>
-		api< { queued: number } >( '/knowledge-base/index-remaining', { method: 'POST' } ),
+		api< { queued: number } >( '/knowledge-base/index-remaining', {
+			method: 'POST',
+		} ),
 	getQueueStats: () =>
-		api< { pending: number; in_progress: number; complete: number; failed: number } >(
-			'/knowledge-base/queue'
-		),
+		api< {
+			pending: number;
+			in_progress: number;
+			complete: number;
+			failed: number;
+		} >( '/knowledge-base/queue' ),
 	processQueue: () =>
 		api< {
-			before: { pending: number; in_progress: number; complete: number; failed: number };
-			after: { pending: number; in_progress: number; complete: number; failed: number };
+			before: {
+				pending: number;
+				in_progress: number;
+				complete: number;
+				failed: number;
+			};
+			after: {
+				pending: number;
+				in_progress: number;
+				complete: number;
+				failed: number;
+			};
 			processed: number;
 		} >( '/knowledge-base/queue', { method: 'POST' } ),
 	listThreads: ( page: number, perPage: number ) =>
@@ -202,18 +226,31 @@ export const adminApi = {
 		api< { thread: Thread; messages: Message[] } >( `/threads/${ id }` ),
 	deleteThread: ( id: number ) =>
 		api< { deleted: boolean } >( `/threads/${ id }`, { method: 'DELETE' } ),
-	getChart: ( days: number ) => api< ChartData >( '/threads/chart', { query: { days } } ),
+	getChart: ( days: number ) =>
+		api< ChartData >( '/threads/chart', { query: { days } } ),
 	listContacts: ( page: number, perPage: number ) =>
 		api< { items: Contact[]; total: number } >( '/contacts', {
 			query: { page, per_page: perPage },
 		} ),
 	deleteContact: ( id: number ) =>
-		api< { deleted: boolean } >( `/contacts/${ id }`, { method: 'DELETE' } ),
+		api< { deleted: boolean } >( `/contacts/${ id }`, {
+			method: 'DELETE',
+		} ),
 	listFaqs: () => api< { items: Faq[] } >( '/faqs' ),
-	createFaq: ( data: { question: string; answer: string; enabled: boolean; sort_order: number } ) =>
-		api< { id: number; item: Faq } >( '/faqs', { method: 'POST', body: data } ),
-	updateFaq: ( id: number, data: Partial< Omit< Faq, 'id' | 'created_at' | 'updated_at' > > ) =>
-		api< { item: Faq } >( `/faqs/${ id }`, { method: 'PUT', body: data } ),
+	createFaq: ( data: {
+		question: string;
+		answer: string;
+		enabled: boolean;
+		sort_order: number;
+	} ) =>
+		api< { id: number; item: Faq } >( '/faqs', {
+			method: 'POST',
+			body: data,
+		} ),
+	updateFaq: (
+		id: number,
+		data: Partial< Omit< Faq, 'id' | 'created_at' | 'updated_at' > >
+	) => api< { item: Faq } >( `/faqs/${ id }`, { method: 'PUT', body: data } ),
 	deleteFaq: ( id: number ) =>
 		api< { deleted: boolean } >( `/faqs/${ id }`, { method: 'DELETE' } ),
 };

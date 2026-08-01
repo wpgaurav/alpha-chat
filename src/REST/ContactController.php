@@ -127,14 +127,18 @@ final class ContactController {
 		);
 
 		$lines = [
+			/* translators: %s: contact name */
 			sprintf( __( 'Name: %s', 'alpha-chat' ), $name ),
+			/* translators: %s: contact email address */
 			sprintf( __( 'Email: %s', 'alpha-chat' ), $email ),
 			'',
 			__( 'Message:', 'alpha-chat' ),
 			$message,
 			'',
 			'—',
+			/* translators: %s: conversation thread identifier */
 			sprintf( __( 'Thread: %s', 'alpha-chat' ), '' === $thread ? __( '(none)', 'alpha-chat' ) : $thread ),
+			/* translators: %s: WordPress admin URL */
 			sprintf( __( 'Admin: %s', 'alpha-chat' ), admin_url( 'admin.php?page=alpha-chat#contacts' ) ),
 		];
 
@@ -159,7 +163,10 @@ final class ContactController {
 	}
 
 	private static function ip_hash( WP_REST_Request $request ): string {
-		$ip = (string) ( $request->get_header( 'X-Forwarded-For' ) ?: $_SERVER['REMOTE_ADDR'] ?? '' );
+		$remote_addr = isset( $_SERVER['REMOTE_ADDR'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
+			: '';
+		$ip = (string) ( $request->get_header( 'X-Forwarded-For' ) ?: $remote_addr );
 		return '' === $ip ? '' : hash( 'sha256', $ip . '|' . wp_salt( 'auth' ) );
 	}
 }

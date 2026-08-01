@@ -15,7 +15,9 @@ final class SettingsRepositoryTest extends TestCase {
 		\Brain\Monkey\setUp();
 
 		Functions\when( '__' )->returnArg( 1 );
-		Functions\when( 'sanitize_text_field' )->alias( static fn ( string $v ): string => trim( wp_strip_all_tags_stub( $v ) ) );
+		Functions\when( 'get_bloginfo' )->justReturn( 'Test Site' );
+		Functions\when( 'get_option' )->justReturn( '' );
+		Functions\when( 'sanitize_text_field' )->alias( static fn ( string $v ): string => trim( strip_tags( $v ) ) );
 		Functions\when( 'wp_strip_all_tags' )->alias( static fn ( string $v ): string => strip_tags( $v ) );
 		Functions\when( 'esc_url_raw' )->returnArg( 1 );
 		Functions\when( 'sanitize_hex_color' )->alias(
@@ -67,7 +69,9 @@ final class SettingsRepositoryTest extends TestCase {
 	}
 
 	public function test_sanitize_clamps_ranges(): void {
-		Functions\when( 'get_option' )->justReturn( [] );
+		Functions\when( 'get_option' )->alias(
+			static fn ( string $key ): string|array => 'admin_email' === $key ? 'admin@example.com' : []
+		);
 
 		$repo      = new SettingsRepository();
 		$sanitized = $repo->sanitize(
@@ -88,10 +92,10 @@ final class SettingsRepositoryTest extends TestCase {
 	}
 
 	public function test_sanitize_preserves_existing_secret_when_bullet_placeholder_submitted(): void {
-		Functions\when( 'get_option' )->justReturn(
-			[
-				'openai_api_key' => 'sk-existing',
-			]
+		Functions\when( 'get_option' )->alias(
+			static fn ( string $key ): string|array => 'admin_email' === $key
+				? 'admin@example.com'
+				: [ 'openai_api_key' => 'sk-existing' ]
 		);
 
 		$repo      = new SettingsRepository();
@@ -101,7 +105,9 @@ final class SettingsRepositoryTest extends TestCase {
 	}
 
 	public function test_sanitize_accepts_new_secret(): void {
-		Functions\when( 'get_option' )->justReturn( [] );
+		Functions\when( 'get_option' )->alias(
+			static fn ( string $key ): string|array => 'admin_email' === $key ? 'admin@example.com' : []
+		);
 
 		$repo      = new SettingsRepository();
 		$sanitized = $repo->sanitize( [ 'openai_api_key' => 'sk-new-value' ] );
@@ -110,7 +116,9 @@ final class SettingsRepositoryTest extends TestCase {
 	}
 
 	public function test_sanitize_bool_coerces_truthy_values(): void {
-		Functions\when( 'get_option' )->justReturn( [] );
+		Functions\when( 'get_option' )->alias(
+			static fn ( string $key ): string|array => 'admin_email' === $key ? 'admin@example.com' : []
+		);
 
 		$repo      = new SettingsRepository();
 		$sanitized = $repo->sanitize(
@@ -122,11 +130,5 @@ final class SettingsRepositoryTest extends TestCase {
 
 		$this->assertTrue( $sanitized['chat_enabled'] );
 		$this->assertFalse( $sanitized['moderation_enabled'] );
-	}
-}
-
-if ( ! function_exists( __NAMESPACE__ . '\\wp_strip_all_tags_stub' ) ) {
-	function wp_strip_all_tags_stub( string $value ): string {
-		return strip_tags( $value );
 	}
 }

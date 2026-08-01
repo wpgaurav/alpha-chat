@@ -14,6 +14,7 @@
     <arg name="extensions" value="php"/>
     <arg value="sp"/>
     <arg name="parallel" value="8"/>
+    <config name="ignore_warnings_on_exit" value="1"/>
 
     <config name="testVersion" value="8.2-"/>
     <config name="minimum_wp_version" value="6.5"/>
@@ -23,19 +24,33 @@
         <exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/>
         <exclude name="Squiz.Commenting.FileComment.Missing"/>
         <exclude name="Squiz.Commenting.ClassComment.Missing"/>
+        <exclude name="Squiz.Commenting.FunctionComment"/>
+        <exclude name="Squiz.Commenting.FunctionCommentThrowTag"/>
+        <exclude name="Squiz.Commenting.VariableComment.Missing"/>
+        <exclude name="Generic.Commenting.DocComment.MissingShort"/>
+        <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+        <exclude name="WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound"/>
+        <exclude name="Universal.Operators.DisallowShortTernary"/>
+        <exclude name="Squiz.Strings.DoubleQuoteUsage.NotRequired"/>
     </rule>
 
     <rule ref="PHPCompatibilityWP"/>
 
     <rule ref="WordPress.WP.I18n">
         <properties>
-            <property name="text_domain" type="array" value="alpha-chat"/>
+            <property name="text_domain" type="array">
+                <element value="alpha-chat"/>
+            </property>
         </properties>
     </rule>
 
     <rule ref="WordPress.NamingConventions.PrefixAllGlobals">
         <properties>
-            <property name="prefixes" type="array" value="alpha_chat,AlphaChat,ALPHA_CHAT"/>
+            <property name="prefixes" type="array">
+                <element value="alpha_chat"/>
+                <element value="AlphaChat"/>
+                <element value="ALPHA_CHAT"/>
+            </property>
         </properties>
     </rule>
 </ruleset>

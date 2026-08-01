@@ -31,7 +31,10 @@ export function ContactsView() {
 	}, [ page ] ); // eslint-disable-line react-hooks/exhaustive-deps
 
 	async function remove( id: number ) {
-		if ( ! window.confirm( __( 'Delete this contact?', 'alpha-chat' ) ) ) return;
+		// eslint-disable-next-line no-alert
+		if ( ! window.confirm( __( 'Delete this contact?', 'alpha-chat' ) ) ) {
+			return;
+		}
 		try {
 			await adminApi.deleteContact( id );
 			load();
@@ -49,11 +52,11 @@ export function ContactsView() {
 					{ error }
 				</Notice>
 			) }
-			{ loading ? (
-				<Spinner />
-			) : contacts.length === 0 ? (
+			{ loading && <Spinner /> }
+			{ ! loading && contacts.length === 0 && (
 				<p>{ __( 'No contacts yet.', 'alpha-chat' ) }</p>
-			) : (
+			) }
+			{ ! loading && contacts.length > 0 && (
 				<>
 					<table className="alpha-chat-table">
 						<thead>
@@ -68,12 +71,23 @@ export function ContactsView() {
 						<tbody>
 							{ contacts.map( ( c ) => (
 								<tr key={ c.id }>
-									<td>{ new Date( c.created_at + 'Z' ).toLocaleString() }</td>
+									<td>
+										{ new Date(
+											c.created_at + 'Z'
+										).toLocaleString() }
+									</td>
 									<td>{ c.name || '—' }</td>
 									<td>
-										<a href={ `mailto:${ c.email }` }>{ c.email }</a>
+										<a href={ `mailto:${ c.email }` }>
+											{ c.email }
+										</a>
 									</td>
-									<td style={ { maxWidth: 480, whiteSpace: 'pre-wrap' } }>
+									<td
+										style={ {
+											maxWidth: 480,
+											whiteSpace: 'pre-wrap',
+										} }
+									>
 										{ c.message }
 									</td>
 									<td>

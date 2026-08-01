@@ -13,7 +13,7 @@ final class Similarity {
 	 */
 	public static function cosine( array $a, array $b ): float {
 		$length = count( $a );
-		if ( 0 === $length || $length !== count( $b ) ) {
+		if ( 0 === $length || count( $b ) !== $length ) {
 			return 0.0;
 		}
 

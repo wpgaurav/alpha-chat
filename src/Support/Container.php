@@ -33,6 +33,7 @@ final class Container {
 	 * @param class-string<T> $id
 	 *
 	 * @return T
+	 * @throws RuntimeException When the service has not been registered.
 	 */
 	public function get( string $id ): object {
 		if ( isset( $this->instances[ $id ] ) ) {
@@ -41,6 +42,7 @@ final class Container {
 		}
 
 		if ( ! isset( $this->factories[ $id ] ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not HTML output.
 			throw new RuntimeException( sprintf( 'Service %s not registered.', $id ) );
 		}
 

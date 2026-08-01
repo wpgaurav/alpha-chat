@@ -44,11 +44,11 @@ final class OpenAIChat implements LLMProvider {
 			static fn ( $v ): bool => null !== $v
 		);
 
-		$response = $this->http->post_json(
-			self::ENDPOINT,
-			[ 'Authorization' => 'Bearer ' . $this->api_key ],
-			$payload
-		);
+			$response = $this->http->post_json(
+				self::ENDPOINT,
+				[ 'Authorization' => 'Bearer ' . $this->api_key ],
+				$payload
+			);
 
 		$choice  = $response['choices'][0] ?? [];
 		$content = (string) ( $choice['message']['content'] ?? '' );

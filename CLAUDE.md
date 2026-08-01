@@ -134,7 +134,7 @@ Three interfaces live under `src/Providers/Contracts/`. Concrete implementations
 ## Rules of engagement
 
 - **No Hyve / ThemeIsle / Codeinwp carryover.** This is a clean-room build. Don't import their names, namespaces, option keys, hook names, or code patterns. The older reference CLAUDE.md is gone for this reason.
-- **No ads, no upsells, no telemetry, no licensing SDK.** Not in v1. Not quietly. If a feature "needs" a phone-home, raise it first.
+- **No ads, no upsells, no telemetry.** FluentCart licensing is limited to free-key activation, deactivation, version checks, and signed update packages from gauravtiwari.org. Do not add any broader phone-home behavior.
 - **Treat `build/` and `vendor/` as generated.** Don't hand-edit. Don't commit them (see `.gitignore`).
 - **Prefer hooks over core patches.** When adding a capability, design the hook first, then the implementation.
 - **Async work** goes through Action Scheduler (bundled via Composer `woocommerce/action-scheduler`) — not `wp_schedule_event`. Use the `as_schedule_single_action` / `as_enqueue_async_action` APIs.

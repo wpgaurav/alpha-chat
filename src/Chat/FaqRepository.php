@@ -23,7 +23,7 @@ final class FaqRepository {
 			return [];
 		}
 
-		return array_map( [ self::class, 'hydrate' ], $rows );
+		return array_values( array_map( [ self::class, 'hydrate' ], $rows ) );
 	}
 
 	/** @return array{id:int, question:string, answer:string, sort_order:int, enabled:bool, created_at:string, updated_at:string}|null */

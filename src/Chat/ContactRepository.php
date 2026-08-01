@@ -52,7 +52,7 @@ final class ContactRepository {
 		$total = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . esc_sql( $table ) );
 
 		return [
-			'items' => is_array( $rows ) ? array_map( [ self::class, 'hydrate' ], $rows ) : [],
+			'items' => is_array( $rows ) ? array_values( array_map( [ self::class, 'hydrate' ], $rows ) ) : [],
 			'total' => $total,
 		];
 	}

@@ -29,27 +29,60 @@ const CHAT_MODELS: Record< Provider, { label: string; value: string }[] > = {
 	anthropic: [
 		{ label: 'Claude Haiku 4.5 · fast, cheap', value: 'claude-haiku-4-5' },
 		{ label: 'Claude Sonnet 4.6 · balanced', value: 'claude-sonnet-4-6' },
-		{ label: 'Claude Opus 4.7 · highest quality', value: 'claude-opus-4-7' },
+		{
+			label: 'Claude Opus 4.7 · highest quality',
+			value: 'claude-opus-4-7',
+		},
 	],
 };
 
 const EMBEDDING_MODELS = [
-	{ label: 'text-embedding-3-small · fast, cheap', value: 'text-embedding-3-small' },
-	{ label: 'text-embedding-3-large · highest quality', value: 'text-embedding-3-large' },
+	{
+		label: 'text-embedding-3-small · fast, cheap',
+		value: 'text-embedding-3-small',
+	},
+	{
+		label: 'text-embedding-3-large · highest quality',
+		value: 'text-embedding-3-large',
+	},
 ];
 
 const PRESETS: Record< PresetKey, Record< Provider, Partial< Settings > > > = {
 	fast: {
-		openai: { chat_model: 'gpt-5.4-mini', temperature: 0.3, max_response_tokens: 600 },
-		anthropic: { chat_model: 'claude-haiku-4-5', temperature: 0.3, max_response_tokens: 600 },
+		openai: {
+			chat_model: 'gpt-5.4-mini',
+			temperature: 0.3,
+			max_response_tokens: 600,
+		},
+		anthropic: {
+			chat_model: 'claude-haiku-4-5',
+			temperature: 0.3,
+			max_response_tokens: 600,
+		},
 	},
 	balanced: {
-		openai: { chat_model: 'gpt-5.4-mini', temperature: 0.7, max_response_tokens: 800 },
-		anthropic: { chat_model: 'claude-sonnet-4-6', temperature: 0.7, max_response_tokens: 800 },
+		openai: {
+			chat_model: 'gpt-5.4-mini',
+			temperature: 0.7,
+			max_response_tokens: 800,
+		},
+		anthropic: {
+			chat_model: 'claude-sonnet-4-6',
+			temperature: 0.7,
+			max_response_tokens: 800,
+		},
 	},
 	quality: {
-		openai: { chat_model: 'gpt-5.4', temperature: 0.7, max_response_tokens: 1500 },
-		anthropic: { chat_model: 'claude-opus-4-7', temperature: 0.7, max_response_tokens: 1500 },
+		openai: {
+			chat_model: 'gpt-5.4',
+			temperature: 0.7,
+			max_response_tokens: 1500,
+		},
+		anthropic: {
+			chat_model: 'claude-opus-4-7',
+			temperature: 0.7,
+			max_response_tokens: 1500,
+		},
 	},
 };
 
@@ -75,11 +108,15 @@ function Section( {
 				<div>
 					<h2 className="alpha-chat-section__title">{ title }</h2>
 					{ description && (
-						<p className="alpha-chat-section__desc">{ description }</p>
+						<p className="alpha-chat-section__desc">
+							{ description }
+						</p>
 					) }
 				</div>
 			</CardHeader>
-			<CardBody className="alpha-chat-section__body">{ children }</CardBody>
+			<CardBody className="alpha-chat-section__body">
+				{ children }
+			</CardBody>
 		</Card>
 	);
 }
@@ -94,7 +131,11 @@ function ColorField( {
 	onChange: ( hex: string ) => void;
 } ) {
 	return (
-		<label className="alpha-chat-color-field">
+		<div
+			className="alpha-chat-color-field"
+			role="group"
+			aria-label={ label }
+		>
 			<span className="alpha-chat-color-field__label">{ label }</span>
 			<span className="alpha-chat-color-field__row">
 				<input
@@ -111,7 +152,7 @@ function ColorField( {
 					spellCheck={ false }
 				/>
 			</span>
-		</label>
+		</div>
 	);
 }
 
@@ -119,7 +160,10 @@ export function SettingsView() {
 	const [ settings, setSettings ] = useState< Settings | null >( null );
 	const [ saving, setSaving ] = useState( false );
 	const [ showAdvanced, setShowAdvanced ] = useState( false );
-	const [ notice, setNotice ] = useState< { status: 'success' | 'error'; message: string } | null >( null );
+	const [ notice, setNotice ] = useState< {
+		status: 'success' | 'error';
+		message: string;
+	} | null >( null );
 
 	useEffect( () => {
 		adminApi
@@ -130,14 +174,19 @@ export function SettingsView() {
 			);
 	}, [] );
 
-	function update< K extends keyof Settings >( key: K, value: Settings[ K ] ) {
+	function update< K extends keyof Settings >(
+		key: K,
+		value: Settings[ K ]
+	) {
 		setSettings( ( previous ) =>
 			previous ? { ...previous, [ key ]: value } : previous
 		);
 	}
 
 	function updateMany( patch: Partial< Settings > ) {
-		setSettings( ( previous ) => ( previous ? { ...previous, ...patch } : previous ) );
+		setSettings( ( previous ) =>
+			previous ? { ...previous, ...patch } : previous
+		);
 	}
 
 	function changeProvider( provider: Provider ) {
@@ -150,20 +199,28 @@ export function SettingsView() {
 	}
 
 	function applyPreset( key: PresetKey ) {
-		if ( ! settings ) return;
+		if ( ! settings ) {
+			return;
+		}
 		updateMany( PRESETS[ key ][ settings.llm_provider ] );
 	}
 
 	async function save() {
-		if ( ! settings ) return;
+		if ( ! settings ) {
+			return;
+		}
 		setSaving( true );
 		setNotice( null );
 		try {
 			const response = await adminApi.saveSettings( settings );
 			setSettings( response.settings );
-			setNotice( { status: 'success', message: __( 'Settings saved.', 'alpha-chat' ) } );
+			setNotice( {
+				status: 'success',
+				message: __( 'Settings saved.', 'alpha-chat' ),
+			} );
 		} catch ( error ) {
-			const message = error instanceof Error ? error.message : String( error );
+			const message =
+				error instanceof Error ? error.message : String( error );
 			setNotice( { status: 'error', message } );
 		} finally {
 			setSaving( false );
@@ -184,7 +241,10 @@ export function SettingsView() {
 	return (
 		<div className="alpha-chat-settings">
 			{ notice && (
-				<Notice status={ notice.status } onRemove={ () => setNotice( null ) }>
+				<Notice
+					status={ notice.status }
+					onRemove={ () => setNotice( null ) }
+				>
 					{ notice.message }
 				</Notice>
 			) }
@@ -197,13 +257,22 @@ export function SettingsView() {
 				) }
 			>
 				<ButtonGroup className="alpha-chat-presets">
-					<Button variant="secondary" onClick={ () => applyPreset( 'fast' ) }>
+					<Button
+						variant="secondary"
+						onClick={ () => applyPreset( 'fast' ) }
+					>
 						⚡ { __( 'Fast', 'alpha-chat' ) }
 					</Button>
-					<Button variant="secondary" onClick={ () => applyPreset( 'balanced' ) }>
+					<Button
+						variant="secondary"
+						onClick={ () => applyPreset( 'balanced' ) }
+					>
 						⚖️ { __( 'Balanced', 'alpha-chat' ) }
 					</Button>
-					<Button variant="secondary" onClick={ () => applyPreset( 'quality' ) }>
+					<Button
+						variant="secondary"
+						onClick={ () => applyPreset( 'quality' ) }
+					>
 						💎 { __( 'Quality', 'alpha-chat' ) }
 					</Button>
 				</ButtonGroup>
@@ -211,7 +280,10 @@ export function SettingsView() {
 
 			<Section
 				title={ __( 'Provider & model', 'alpha-chat' ) }
-				description={ __( 'Vector store: site database, built-in.', 'alpha-chat' ) }
+				description={ __(
+					'Vector store: site database, built-in.',
+					'alpha-chat'
+				) }
 			>
 				<div className="alpha-chat-grid-2">
 					<SelectControl
@@ -221,7 +293,9 @@ export function SettingsView() {
 							{ label: 'OpenAI', value: 'openai' },
 							{ label: 'Anthropic', value: 'anthropic' },
 						] }
-						onChange={ ( value ) => changeProvider( value as Provider ) }
+						onChange={ ( value ) =>
+							changeProvider( value as Provider )
+						}
 					/>
 					<SelectControl
 						label={ __( 'Chat model', 'alpha-chat' ) }
@@ -251,7 +325,9 @@ export function SettingsView() {
 						label={ __( 'Anthropic API key', 'alpha-chat' ) }
 						type="password"
 						value={ settings.anthropic_api_key }
-						onChange={ ( value ) => update( 'anthropic_api_key', value ) }
+						onChange={ ( value ) =>
+							update( 'anthropic_api_key', value )
+						}
 					/>
 				) }
 			</Section>
@@ -261,12 +337,19 @@ export function SettingsView() {
 					<ToggleControl
 						label={ __( 'Enable chat', 'alpha-chat' ) }
 						checked={ settings.chat_enabled }
-						onChange={ ( value ) => update( 'chat_enabled', value ) }
+						onChange={ ( value ) =>
+							update( 'chat_enabled', value )
+						}
 					/>
 					<ToggleControl
-						label={ __( 'Show floating launcher site-wide', 'alpha-chat' ) }
+						label={ __(
+							'Show floating launcher site-wide',
+							'alpha-chat'
+						) }
 						checked={ settings.show_launcher }
-						onChange={ ( value ) => update( 'show_launcher', value ) }
+						onChange={ ( value ) =>
+							update( 'show_launcher', value )
+						}
 						help={ __(
 							'Off = fastest site. Chat loads only on pages with the block or [alpha_chat].',
 							'alpha-chat'
@@ -275,7 +358,9 @@ export function SettingsView() {
 					<ToggleControl
 						label={ __( 'Enable moderation', 'alpha-chat' ) }
 						checked={ settings.moderation_enabled }
-						onChange={ ( value ) => update( 'moderation_enabled', value ) }
+						onChange={ ( value ) =>
+							update( 'moderation_enabled', value )
+						}
 					/>
 				</div>
 				<TextareaControl
@@ -288,12 +373,16 @@ export function SettingsView() {
 					<TextControl
 						label={ __( 'Welcome message', 'alpha-chat' ) }
 						value={ settings.welcome_message }
-						onChange={ ( value ) => update( 'welcome_message', value ) }
+						onChange={ ( value ) =>
+							update( 'welcome_message', value )
+						}
 					/>
 					<TextControl
 						label={ __( 'Fallback message', 'alpha-chat' ) }
 						value={ settings.fallback_message }
-						onChange={ ( value ) => update( 'fallback_message', value ) }
+						onChange={ ( value ) =>
+							update( 'fallback_message', value )
+						}
 					/>
 				</div>
 			</Section>
@@ -316,12 +405,24 @@ export function SettingsView() {
 						label={ __( 'Position', 'alpha-chat' ) }
 						value={ settings.launcher_position }
 						options={ [
-							{ label: __( 'Right', 'alpha-chat' ), value: 'right' },
-							{ label: __( 'Center', 'alpha-chat' ), value: 'center' },
-							{ label: __( 'Left', 'alpha-chat' ), value: 'left' },
+							{
+								label: __( 'Right', 'alpha-chat' ),
+								value: 'right',
+							},
+							{
+								label: __( 'Center', 'alpha-chat' ),
+								value: 'center',
+							},
+							{
+								label: __( 'Left', 'alpha-chat' ),
+								value: 'left',
+							},
 						] }
 						onChange={ ( value ) =>
-							update( 'launcher_position', value as Settings[ 'launcher_position' ] )
+							update(
+								'launcher_position',
+								value as Settings[ 'launcher_position' ]
+							)
 						}
 					/>
 				</div>
@@ -346,13 +447,17 @@ export function SettingsView() {
 				<ToggleControl
 					label={ __( 'Enable contact form', 'alpha-chat' ) }
 					checked={ settings.contact_form_enabled }
-					onChange={ ( value ) => update( 'contact_form_enabled', value ) }
+					onChange={ ( value ) =>
+						update( 'contact_form_enabled', value )
+					}
 				/>
 				<TextControl
 					label={ __( 'Notify email', 'alpha-chat' ) }
 					type="email"
 					value={ settings.contact_notify_email }
-					onChange={ ( value ) => update( 'contact_notify_email', value ) }
+					onChange={ ( value ) =>
+						update( 'contact_notify_email', value )
+					}
 					help={ __(
 						'Where to send contact-form submissions. Falls back to site admin email.',
 						'alpha-chat'
@@ -362,26 +467,34 @@ export function SettingsView() {
 					<TextControl
 						label={ __( 'CTA label', 'alpha-chat' ) }
 						value={ settings.contact_cta_label }
-						onChange={ ( value ) => update( 'contact_cta_label', value ) }
+						onChange={ ( value ) =>
+							update( 'contact_cta_label', value )
+						}
 					/>
 					<TextControl
 						label={ __( 'Success message', 'alpha-chat' ) }
 						value={ settings.contact_success_message }
-						onChange={ ( value ) => update( 'contact_success_message', value ) }
+						onChange={ ( value ) =>
+							update( 'contact_success_message', value )
+						}
 					/>
 				</div>
 			</Section>
 
 			<Section
 				title={ __( 'Widget design', 'alpha-chat' ) }
-				description={ __( 'Embed anywhere with', 'alpha-chat' ) + ' [alpha_chat]' }
+				description={
+					__( 'Embed anywhere with', 'alpha-chat' ) + ' [alpha_chat]'
+				}
 			>
 				<div className="alpha-chat-colors">
 					{ COLOR_FIELDS.map( ( field ) => (
 						<ColorField
 							key={ field.key }
 							label={ field.label }
-							value={ settings.colors?.[ field.key ] ?? '#000000' }
+							value={
+								settings.colors?.[ field.key ] ?? '#000000'
+							}
 							onChange={ ( hex ) =>
 								update( 'colors', {
 									...( settings.colors ?? {} ),
@@ -411,7 +524,9 @@ export function SettingsView() {
 								min={ 0 }
 								max={ 2 }
 								step={ 0.1 }
-								onChange={ ( value ) => update( 'temperature', value ?? 0.7 ) }
+								onChange={ ( value ) =>
+									update( 'temperature', value ?? 0.7 )
+								}
 							/>
 							<RangeControl
 								label={ __( 'Top P', 'alpha-chat' ) }
@@ -419,35 +534,54 @@ export function SettingsView() {
 								min={ 0 }
 								max={ 1 }
 								step={ 0.05 }
-								onChange={ ( value ) => update( 'top_p', value ?? 1 ) }
+								onChange={ ( value ) =>
+									update( 'top_p', value ?? 1 )
+								}
 							/>
 							<RangeControl
-								label={ __( 'Max response tokens', 'alpha-chat' ) }
+								label={ __(
+									'Max response tokens',
+									'alpha-chat'
+								) }
 								value={ settings.max_response_tokens }
 								min={ 64 }
 								max={ 4096 }
 								step={ 64 }
 								onChange={ ( value ) =>
-									update( 'max_response_tokens', value ?? 800 )
+									update(
+										'max_response_tokens',
+										value ?? 800
+									)
 								}
 							/>
 							<RangeControl
-								label={ __( 'Similarity threshold', 'alpha-chat' ) }
+								label={ __(
+									'Similarity threshold',
+									'alpha-chat'
+								) }
 								value={ settings.similarity_score_threshold }
 								min={ 0 }
 								max={ 1 }
 								step={ 0.05 }
 								onChange={ ( value ) =>
-									update( 'similarity_score_threshold', value ?? 0.4 )
+									update(
+										'similarity_score_threshold',
+										value ?? 0.4
+									)
 								}
 							/>
 							<RangeControl
-								label={ __( 'Max context chunks', 'alpha-chat' ) }
+								label={ __(
+									'Max context chunks',
+									'alpha-chat'
+								) }
 								value={ settings.max_context_chunks }
 								min={ 1 }
 								max={ 20 }
 								step={ 1 }
-								onChange={ ( value ) => update( 'max_context_chunks', value ?? 5 ) }
+								onChange={ ( value ) =>
+									update( 'max_context_chunks', value ?? 5 )
+								}
 							/>
 						</div>
 					</div>

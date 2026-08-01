@@ -73,6 +73,7 @@ final class HttpClient {
 		$response = wp_remote_request( $url, $args );
 
 		if ( $response instanceof WP_Error ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not rendered as HTML.
 			throw new HttpException( $response->get_error_message(), 0 );
 		}
 
@@ -93,6 +94,7 @@ final class HttpClient {
 				$message = sprintf( 'HTTP %d', $code );
 			}
 
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception data is not rendered as HTML.
 			throw new HttpException( $message, (int) $code, $decoded );
 		}
 

@@ -32,12 +32,16 @@ $options = [
 	'alpha_chat_settings',
 	'alpha_chat_db_version',
 	'alpha_chat_installed_at',
+	'alpha_chat_license',
 ];
 
 foreach ( $options as $option ) {
 	delete_option( $option );
 	delete_site_option( $option );
 }
+
+delete_transient( 'alpha_chat_update_info' );
+delete_site_transient( 'update_plugins' );
 
 $wpdb->query(
 	$wpdb->prepare(

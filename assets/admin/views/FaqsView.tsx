@@ -18,7 +18,10 @@ export function FaqsView() {
 	const [ loading, setLoading ] = useState( true );
 	const [ busy, setBusy ] = useState( false );
 	const [ editing, setEditing ] = useState< Partial< Faq > | null >( null );
-	const [ notice, setNotice ] = useState< { status: 'success' | 'error'; message: string } | null >( null );
+	const [ notice, setNotice ] = useState< {
+		status: 'success' | 'error';
+		message: string;
+	} | null >( null );
 
 	async function load() {
 		setLoading( true );
@@ -28,7 +31,8 @@ export function FaqsView() {
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error instanceof Error ? error.message : String( error ),
+				message:
+					error instanceof Error ? error.message : String( error ),
 			} );
 		} finally {
 			setLoading( false );
@@ -40,16 +44,29 @@ export function FaqsView() {
 	}, [] );
 
 	function startNew() {
-		setEditing( { question: '', answer: '', enabled: true, sort_order: items.length } );
+		setEditing( {
+			question: '',
+			answer: '',
+			enabled: true,
+			sort_order: items.length,
+		} );
 		setNotice( null );
 	}
 
 	async function save() {
-		if ( ! editing ) return;
+		if ( ! editing ) {
+			return;
+		}
 		const question = ( editing.question ?? '' ).trim();
 		const answer = ( editing.answer ?? '' ).trim();
 		if ( ! question || ! answer ) {
-			setNotice( { status: 'error', message: __( 'Question and answer are required.', 'alpha-chat' ) } );
+			setNotice( {
+				status: 'error',
+				message: __(
+					'Question and answer are required.',
+					'alpha-chat'
+				),
+			} );
 			return;
 		}
 
@@ -73,11 +90,15 @@ export function FaqsView() {
 			}
 			setEditing( null );
 			await load();
-			setNotice( { status: 'success', message: __( 'Saved.', 'alpha-chat' ) } );
+			setNotice( {
+				status: 'success',
+				message: __( 'Saved.', 'alpha-chat' ),
+			} );
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error instanceof Error ? error.message : String( error ),
+				message:
+					error instanceof Error ? error.message : String( error ),
 			} );
 		} finally {
 			setBusy( false );
@@ -85,14 +106,18 @@ export function FaqsView() {
 	}
 
 	async function remove( id: number ) {
-		if ( ! window.confirm( __( 'Delete this Q&A?', 'alpha-chat' ) ) ) return;
+		// eslint-disable-next-line no-alert
+		if ( ! window.confirm( __( 'Delete this Q&A?', 'alpha-chat' ) ) ) {
+			return;
+		}
 		try {
 			await adminApi.deleteFaq( id );
 			await load();
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error instanceof Error ? error.message : String( error ),
+				message:
+					error instanceof Error ? error.message : String( error ),
 			} );
 		}
 	}
@@ -104,7 +129,8 @@ export function FaqsView() {
 		} catch ( error ) {
 			setNotice( {
 				status: 'error',
-				message: error instanceof Error ? error.message : String( error ),
+				message:
+					error instanceof Error ? error.message : String( error ),
 			} );
 		}
 	}
@@ -112,7 +138,10 @@ export function FaqsView() {
 	return (
 		<div className="alpha-chat-faqs">
 			{ notice && (
-				<Notice status={ notice.status } onRemove={ () => setNotice( null ) }>
+				<Notice
+					status={ notice.status }
+					onRemove={ () => setNotice( null ) }
+				>
 					{ notice.message }
 				</Notice>
 			) }
@@ -121,7 +150,9 @@ export function FaqsView() {
 				<CardBody>
 					<div className="alpha-chat-faqs__toolbar">
 						<div>
-							<strong>{ __( 'Curated Q&A', 'alpha-chat' ) }</strong>
+							<strong>
+								{ __( 'Curated Q&A', 'alpha-chat' ) }
+							</strong>
 							<p className="alpha-chat-hint">
 								{ __(
 									'Always included in the assistant\'s context. Perfect for identity ("Who are you?"), pricing, contact info, policies — anything you want the bot to answer reliably.',
@@ -142,25 +173,47 @@ export function FaqsView() {
 						<TextControl
 							label={ __( 'Question', 'alpha-chat' ) }
 							value={ editing.question ?? '' }
-							onChange={ ( value ) => setEditing( { ...editing, question: value } ) }
-							placeholder={ __( 'e.g. Who are you?', 'alpha-chat' ) }
+							onChange={ ( value ) =>
+								setEditing( { ...editing, question: value } )
+							}
+							placeholder={ __(
+								'e.g. Who are you?',
+								'alpha-chat'
+							) }
 						/>
 						<TextareaControl
 							label={ __( 'Answer', 'alpha-chat' ) }
 							value={ editing.answer ?? '' }
-							onChange={ ( value ) => setEditing( { ...editing, answer: value } ) }
+							onChange={ ( value ) =>
+								setEditing( { ...editing, answer: value } )
+							}
 							rows={ 4 }
 						/>
 						<ToggleControl
 							label={ __( 'Enabled', 'alpha-chat' ) }
 							checked={ editing.enabled ?? true }
-							onChange={ ( value ) => setEditing( { ...editing, enabled: value } ) }
+							onChange={ ( value ) =>
+								setEditing( { ...editing, enabled: value } )
+							}
 						/>
-						<div style={ { display: 'flex', gap: '0.5rem', marginTop: '0.5rem' } }>
-							<Button variant="primary" onClick={ save } isBusy={ busy }>
+						<div
+							style={ {
+								display: 'flex',
+								gap: '0.5rem',
+								marginTop: '0.5rem',
+							} }
+						>
+							<Button
+								variant="primary"
+								onClick={ save }
+								isBusy={ busy }
+							>
 								{ __( 'Save', 'alpha-chat' ) }
 							</Button>
-							<Button variant="tertiary" onClick={ () => setEditing( null ) }>
+							<Button
+								variant="tertiary"
+								onClick={ () => setEditing( null ) }
+							>
 								{ __( 'Cancel', 'alpha-chat' ) }
 							</Button>
 						</div>
@@ -170,27 +223,44 @@ export function FaqsView() {
 
 			<Card>
 				<CardBody>
-					{ loading ? (
-						<Spinner />
-					) : items.length === 0 ? (
-						<p>{ __( 'No Q&A yet. Add your first one above.', 'alpha-chat' ) }</p>
-					) : (
+					{ loading && <Spinner /> }
+					{ ! loading && items.length === 0 && (
+						<p>
+							{ __(
+								'No Q&A yet. Add your first one above.',
+								'alpha-chat'
+							) }
+						</p>
+					) }
+					{ ! loading && items.length > 0 && (
 						<table className="alpha-chat-table">
 							<thead>
 								<tr>
 									<th>{ __( 'Question', 'alpha-chat' ) }</th>
 									<th>{ __( 'Answer', 'alpha-chat' ) }</th>
-									<th style={ { width: 80 } }>{ __( 'Enabled', 'alpha-chat' ) }</th>
+									<th style={ { width: 80 } }>
+										{ __( 'Enabled', 'alpha-chat' ) }
+									</th>
 									<th />
 								</tr>
 							</thead>
 							<tbody>
 								{ items.map( ( faq ) => (
 									<tr key={ faq.id }>
-										<td style={ { maxWidth: 260, whiteSpace: 'pre-wrap' } }>
+										<td
+											style={ {
+												maxWidth: 260,
+												whiteSpace: 'pre-wrap',
+											} }
+										>
 											<strong>{ faq.question }</strong>
 										</td>
-										<td style={ { maxWidth: 460, whiteSpace: 'pre-wrap' } }>
+										<td
+											style={ {
+												maxWidth: 460,
+												whiteSpace: 'pre-wrap',
+											} }
+										>
 											{ faq.answer }
 										</td>
 										<td>
@@ -198,17 +268,26 @@ export function FaqsView() {
 												__nextHasNoMarginBottom
 												label=""
 												checked={ faq.enabled }
-												onChange={ () => toggleEnabled( faq ) }
+												onChange={ () =>
+													toggleEnabled( faq )
+												}
 											/>
 										</td>
 										<td>
-											<Button variant="link" onClick={ () => setEditing( faq ) }>
+											<Button
+												variant="link"
+												onClick={ () =>
+													setEditing( faq )
+												}
+											>
 												{ __( 'Edit', 'alpha-chat' ) }
 											</Button>
 											<Button
 												variant="link"
 												isDestructive
-												onClick={ () => remove( faq.id ) }
+												onClick={ () =>
+													remove( faq.id )
+												}
 											>
 												{ __( 'Delete', 'alpha-chat' ) }
 											</Button>

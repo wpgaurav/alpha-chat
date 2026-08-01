@@ -312,11 +312,9 @@ function ContactForm( {
 function ChatPanel( {
 	client,
 	onClose,
-	inline,
 }: {
 	client: ClientData;
 	onClose?: () => void;
-	inline?: boolean;
 } ) {
 	const [ messages, setMessages ] = useState< Message[] >( () => [
 		{ id: uid(), role: 'assistant', content: client.welcomeMessage },
@@ -583,7 +581,7 @@ function InlineWidget( { client }: { client: ClientData } ) {
 	return (
 		<div className="root" style={ cssVarStyle( client.colors ?? {} ) }>
 			<div className="panel is-inline">
-				<ChatPanel client={ client } inline />
+				<ChatPanel client={ client } />
 			</div>
 		</div>
 	);

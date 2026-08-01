@@ -53,14 +53,14 @@ final class AnthropicChat implements LLMProvider {
 			static fn ( $v ): bool => null !== $v
 		);
 
-		$response = $this->http->post_json(
-			self::ENDPOINT,
-			[
-				'x-api-key'         => $this->api_key,
-				'anthropic-version' => self::VERSION,
-			],
-			$payload
-		);
+			$response = $this->http->post_json(
+				self::ENDPOINT,
+				[
+					'x-api-key'         => $this->api_key,
+					'anthropic-version' => self::VERSION,
+				],
+				$payload
+			);
 
 		$content_parts = $response['content'] ?? [];
 		$content       = '';

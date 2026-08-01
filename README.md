@@ -12,6 +12,7 @@ AI-powered chatbot for WordPress. Indexes your site content, answers visitor que
 - **Theme-proof widget** — mounts inside a Shadow DOM with all styles inlined; no host CSS bleeds in.
 - **Contact form** — if a visitor still needs help, Name / Email / Message get stored and emailed to the admin via `wp_mail()`.
 - **Rate-limited** — transient-backed limits on chat (30/min per session) and contact (5/hr per IP).
+- **Protected updates** — activate the free lifetime FluentCart key to receive normal WordPress update notices and signed packages.
 
 ## Requirements
 
@@ -26,6 +27,7 @@ AI-powered chatbot for WordPress. Indexes your site content, answers visitor que
 3. Go to **Alpha Chat → Settings** and add your OpenAI API key (required for embeddings + moderation). Add an Anthropic key only if you pick Claude as the chat model.
 4. **Knowledge Base** tab → filter *Not indexed* → **Index remaining** to ingest the site.
 5. Add `[alpha_chat]` to any page (or drop in the "Alpha Chat" Gutenberg block), or turn on **Settings → Behavior → Show floating launcher site-wide**.
+6. Open **Alpha Chat → License** and activate the free lifetime key from your FluentCart receipt or account for protected updates.
 
 ## Admin
 
@@ -34,6 +36,7 @@ AI-powered chatbot for WordPress. Indexes your site content, answers visitor que
 - **Conversations** — thread history with per-message tokens + usage + sources; CSV export.
 - **Contacts** — submissions from the in-chat contact form.
 - **Settings** — provider, model, preset (Fast/Balanced/Quality), system prompt, welcome/fallback copy, launcher position (left/center/right), nudge text, brand name, contact form, widget colors (accent / panel / user bubble / assistant bubble), advanced tuning (temperature, top_p, max response tokens, similarity threshold, max context chunks).
+- **License** — activation and deactivation for the free lifetime FluentCart key used by protected plugin updates.
 
 ## Architecture
 
@@ -129,6 +132,7 @@ See `HOOKS.md` for the full list. Highlights:
 - Chat messages and visitor metadata (session hash of IP+UA, never the raw IP) are stored in `wp_alpha_chat_threads` and `wp_alpha_chat_messages`.
 - Contact submissions are stored in `wp_alpha_chat_contacts` with a hashed IP.
 - Chat and embedding requests go to the provider you configure. No telemetry is sent to any other endpoint.
+- License activation, deactivation, and update checks contact `gauravtiwari.org`; signed packages are returned only to a valid activation.
 - Uninstall (`uninstall.php`) drops all plugin tables, options, post meta, and scheduled Action Scheduler jobs.
 
 ## License

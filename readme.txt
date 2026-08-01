@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.1.6
+Stable tag: 0.1.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,7 +21,7 @@ Alpha Chat turns your WordPress content into a conversational interface. It spli
 * **Performance-first.** The floating launcher is opt-in; chat assets only load on pages that use the block or [alpha_chat] shortcode. Script uses `defer`. Empty retrievals never call the LLM.
 * **Theme-proof widget.** Rendered inside a Shadow DOM with styles inlined — no theme CSS can override it.
 * **Token-frugal.** If retrieval returns nothing, the visitor gets your fallback message without any provider request.
-* **Privacy-respecting.** No telemetry. No phone-home. No license key. Uninstalling cleans up every table, option, and scheduled job.
+* **Privacy-respecting.** No telemetry. Your site contacts gauravtiwari.org only when you activate, deactivate, or check a free license for protected updates. Uninstalling cleans up every table and option.
 
 = Features =
 
@@ -53,6 +53,7 @@ Alpha Chat turns your WordPress content into a conversational interface. It spli
 3. Go to **Alpha Chat → Settings** and paste your OpenAI API key (required for embeddings + moderation). Add an Anthropic key only if you pick Claude.
 4. Open the **Knowledge Base** tab, filter *Not indexed*, and click **Index remaining** to ingest your site.
 5. Drop the **Alpha Chat** block or `[alpha_chat]` on any page, or enable **Behavior → Show floating launcher site-wide**.
+6. Open **Alpha Chat → License** and activate the free lifetime key from your FluentCart receipt or account to receive protected updates.
 
 == Frequently Asked Questions ==
 
@@ -102,6 +103,11 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.1.7 =
+* Added a free lifetime FluentCart license screen.
+* Added protected automatic updates through the normal WordPress plugin updater.
+* Moved the canonical download to the Alpha Chat FluentCart product and customer account.
 
 = 0.1.6 =
 * Removed the "outside knowledge is forbidden" restriction from the system prompt. The assistant now answers freely, falling back to general knowledge when the retrieved site context is thin.

@@ -24,6 +24,7 @@ final class ChatService {
 
 	/**
 	 * @return array{thread_uuid: string, reply: string, flagged?: bool, sources: list<array{source_type: string, source_id: int, score: float}>}
+	 * @throws RuntimeException When a message cannot be processed.
 	 */
 	public function send( string $message, ?string $thread_uuid, string $session_hash, ?int $user_id = null, string $origin_url = '' ): array {
 		$message = trim( $message );
@@ -141,6 +142,7 @@ final class ChatService {
 	 * @param list<array{id: string, score: float, metadata: array<string, mixed>}>           $chunks
 	 * @param list<array{id:int, question:string, answer:string, sort_order:int, enabled:bool, created_at:string, updated_at:string}> $faqs
 	 * @param list<array<string, mixed>>                                                      $history
+	 * @param array{url:string,title:string,content:string}|null                              $current_page
 	 *
 	 * @return list<array{role: string, content: string}>
 	 */

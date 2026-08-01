@@ -33,6 +33,7 @@ final class Indexer {
 			return false;
 		}
 
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Applying WordPress core content filters intentionally.
 		$text = wp_strip_all_tags( (string) apply_filters( 'the_content', $post->post_content ), true );
 		$text = trim( $post->post_title . "\n\n" . $text );
 

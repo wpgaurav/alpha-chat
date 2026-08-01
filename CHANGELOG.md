@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-08-01
+
+### Added
+- Free lifetime FluentCart licensing with an Alpha Chat license screen.
+- Protected automatic updates through the normal WordPress plugin updater.
+
+### Changed
+- The canonical download is now delivered through the Alpha Chat FluentCart product and customer account.
+
 ## [0.1.6] - 2026-04-18
 
 ### Changed
