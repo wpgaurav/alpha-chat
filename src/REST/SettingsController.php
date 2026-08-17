@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace AlphaChat\REST;
 
+use AlphaChat\Chat\MessageRepository;
 use AlphaChat\KnowledgeBase\Indexer;
 use AlphaChat\Providers\ModelCatalog;
+use AlphaChat\Scheduler\ReindexScheduler;
 use AlphaChat\Settings\SettingsRepository;
 use WP_Error;
 use WP_REST_Request;
@@ -15,6 +17,8 @@ final class SettingsController {
 	public function __construct(
 		private readonly SettingsRepository $settings,
 		private readonly Indexer $indexer,
+		private readonly MessageRepository $messages,
+		private readonly ReindexScheduler $scheduler,
 	) {}
 
 	public function register( string $namespace ): void {
@@ -39,6 +43,31 @@ final class SettingsController {
 						],
 					],
 				],
+			]
+		);
+
+		register_rest_route(
+			$namespace,
+			'/dashboard',
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'dashboard' ],
+				'permission_callback' => [ self::class, 'can_manage' ],
+				'args'                => [
+					'days' => [ 'type' => 'integer', 'default' => 14 ],
+				],
+			]
+		);
+	}
+
+	public function dashboard( WP_REST_Request $request ): WP_REST_Response {
+		$days = max( 1, min( 90, (int) $request->get_param( 'days' ) ) );
+
+		return new WP_REST_Response(
+			[
+				'stats' => $this->indexer->stats(),
+				'queue' => $this->scheduler->queue_counts(),
+				'chart' => $this->messages->daily_chart( $days ),
 			]
 		);
 	}

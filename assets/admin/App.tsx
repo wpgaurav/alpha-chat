@@ -2,6 +2,7 @@ import { useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { TabPanel } from '@wordpress/components';
 
+import { AdminNavContext } from './nav';
 import { SettingsView } from './views/SettingsView';
 import { KnowledgeBaseView } from './views/KnowledgeBaseView';
 import { ThreadsView } from './views/ThreadsView';
@@ -46,30 +47,33 @@ export function App() {
 	const [ activeTab, setActiveTab ] = useState( 'dashboard' );
 
 	return (
-		<div className="alpha-chat-admin">
-			<header className="alpha-chat-admin__header">
-				<h1>{ __( 'Alpha Chat', 'alpha-chat' ) }</h1>
-			</header>
-			<TabPanel
-				className="alpha-chat-admin__tabs"
-				activeClass="is-active"
-				initialTabName={ activeTab }
-				onSelect={ setActiveTab }
-				tabs={ tabs }
-			>
-				{ ( tab ) => (
-					<section className="alpha-chat-admin__panel">
-						{ tab.name === 'dashboard' && <DashboardView /> }
-						{ tab.name === 'knowledge-base' && (
-							<KnowledgeBaseView />
-						) }
-						{ tab.name === 'faqs' && <FaqsView /> }
-						{ tab.name === 'threads' && <ThreadsView /> }
-						{ tab.name === 'contacts' && <ContactsView /> }
-						{ tab.name === 'settings' && <SettingsView /> }
-					</section>
-				) }
-			</TabPanel>
-		</div>
+		<AdminNavContext.Provider value={ { goTo: setActiveTab } }>
+			<div className="alpha-chat-admin">
+				<header className="alpha-chat-admin__header">
+					<h1>{ __( 'Alpha Chat', 'alpha-chat' ) }</h1>
+				</header>
+				<TabPanel
+					key={ activeTab }
+					className="alpha-chat-admin__tabs"
+					activeClass="is-active"
+					initialTabName={ activeTab }
+					onSelect={ setActiveTab }
+					tabs={ tabs }
+				>
+					{ ( tab ) => (
+						<section className="alpha-chat-admin__panel">
+							{ tab.name === 'dashboard' && <DashboardView /> }
+							{ tab.name === 'knowledge-base' && (
+								<KnowledgeBaseView />
+							) }
+							{ tab.name === 'faqs' && <FaqsView /> }
+							{ tab.name === 'threads' && <ThreadsView /> }
+							{ tab.name === 'contacts' && <ContactsView /> }
+							{ tab.name === 'settings' && <SettingsView /> }
+						</section>
+					) }
+				</TabPanel>
+			</div>
+		</AdminNavContext.Provider>
 	);
 }

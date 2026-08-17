@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude, grok, deepseek
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.2.0
+Stable tag: 0.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -103,6 +103,11 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.2.1 =
+* Fixed the widget treating HTML error pages as JSON ("Unexpected token <"). Chat now retries the rest_route URL and shows a plain retry message.
+* Dashboard cards, queue tiles, and the activity chart are clickable. 7/14/30 day range and Refresh added.
+* Dashboard loads stats, queue, and chart in one request.
 
 = 0.2.0 =
 * Import curated Q&A from page URLs via the WordPress REST API, FAQ schema, accordions, and question headings.

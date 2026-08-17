@@ -108,6 +108,7 @@ Namespace: `alpha-chat/v1`. Routes:
 
 - `GET  /ping` — sanity check.
 - `GET /POST /settings` — settings read/write. `manage_options` capability + `wp-nonce`. Secrets are masked on read; empty or bullet-only values on write preserve the stored secret.
+- `GET /dashboard` — stats, indexing queue, and activity chart in one request.
 - `GET /knowledge-base`, `POST /knowledge-base/{id}`, `DELETE /knowledge-base/{id}`, `POST /knowledge-base/reindex-all`.
 - `GET /threads`, `GET /threads/{id}`, `DELETE /threads/{id}`, `GET /threads/chart`, `GET /threads/export` (CSV).
 - `GET /POST /faqs`, `PUT /DELETE /faqs/{id}`, `POST /faqs/preview`, `POST /faqs/import`.

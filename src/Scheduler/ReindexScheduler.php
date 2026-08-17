@@ -53,6 +53,81 @@ final class ReindexScheduler {
 		return $count;
 	}
 
+	/**
+	 * @return array{pending: int, in_progress: int, complete: int, failed: int}
+	 */
+	public function queue_counts(): array {
+		global $wpdb;
+
+		$groups_table  = $wpdb->prefix . 'actionscheduler_groups';
+		$actions_table = $wpdb->prefix . 'actionscheduler_actions';
+		$empty         = [
+			'pending'     => 0,
+			'in_progress' => 0,
+			'complete'    => 0,
+			'failed'      => 0,
+		];
+
+		$wpdb->suppress_errors( true );
+		$show_errors = $wpdb->hide_errors();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$has_table = $wpdb->get_var(
+			$wpdb->prepare(
+				'SHOW TABLES LIKE %s',
+				$wpdb->esc_like( $groups_table )
+			)
+		);
+		if ( ! $has_table ) {
+			if ( $show_errors ) {
+				$wpdb->show_errors();
+			}
+			$wpdb->suppress_errors( false );
+			return $empty;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$group_id = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT group_id FROM ' . esc_sql( $groups_table ) . ' WHERE slug = %s',
+				self::GROUP
+			)
+		);
+		if ( ! $group_id || '' !== (string) $wpdb->last_error ) {
+			if ( $show_errors ) {
+				$wpdb->show_errors();
+			}
+			$wpdb->suppress_errors( false );
+			return $empty;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT status, COUNT(*) AS c FROM ' . esc_sql( $actions_table ) . ' WHERE group_id = %d GROUP BY status',
+				(int) $group_id
+			),
+			ARRAY_A
+		);
+		if ( $show_errors ) {
+			$wpdb->show_errors();
+		}
+		$wpdb->suppress_errors( false );
+		if ( ! is_array( $rows ) ) {
+			return $empty;
+		}
+
+		$out = $empty;
+		foreach ( (array) $rows as $row ) {
+			$status = str_replace( '-', '_', (string) ( $row['status'] ?? '' ) );
+			if ( isset( $out[ $status ] ) ) {
+				$out[ $status ] = (int) $row['c'];
+			}
+		}
+
+		return $out;
+	}
+
 	public function run_single( int $post_id ): void {
 		$this->indexer->index_post( $post_id );
 	}

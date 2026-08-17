@@ -28,7 +28,19 @@ export function KnowledgeBaseView() {
 	>( [ { label: __( 'Any', 'alpha-chat' ), value: 'any' } ] );
 	const [ indexedFilter, setIndexedFilter ] = useState<
 		'any' | 'yes' | 'no'
-	>( 'any' );
+	>( () => {
+		try {
+			const stored = window.sessionStorage.getItem(
+				'alpha-chat-kb-indexed'
+			);
+			if ( stored === 'yes' || stored === 'no' || stored === 'any' ) {
+				return stored;
+			}
+		} catch {
+			/* ignore */
+		}
+		return 'any';
+	} );
 	const [ loading, setLoading ] = useState( true );
 	const [ working, setWorking ] = useState< Record< number, boolean > >( {} );
 	const [ selected, setSelected ] = useState< Set< number > >( new Set() );

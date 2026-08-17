@@ -299,7 +299,7 @@ final class KnowledgeBaseController {
 	}
 
 	public function queue_stats(): WP_REST_Response {
-		return new WP_REST_Response( self::stats_for_group() );
+		return new WP_REST_Response( $this->scheduler->queue_counts() );
 	}
 
 	public function process_queue(): WP_REST_Response|WP_Error {
@@ -307,7 +307,7 @@ final class KnowledgeBaseController {
 			return new WP_Error( 'alpha_chat_no_scheduler', __( 'Action Scheduler is not available.', 'alpha-chat' ), [ 'status' => 500 ] );
 		}
 
-		$before = self::stats_for_group();
+		$before = $this->scheduler->queue_counts();
 
 		try {
 			$runner = \ActionScheduler::runner();
@@ -319,7 +319,7 @@ final class KnowledgeBaseController {
 			return new WP_Error( 'alpha_chat_runner_failed', $e->getMessage(), [ 'status' => 500 ] );
 		}
 
-		$after = self::stats_for_group();
+		$after = $this->scheduler->queue_counts();
 
 		return new WP_REST_Response(
 			[
@@ -328,46 +328,6 @@ final class KnowledgeBaseController {
 				'processed' => max( 0, $after['complete'] - $before['complete'] ),
 			]
 		);
-	}
-
-	/**
-	 * @return array{pending:int, in_progress:int, complete:int, failed:int}
-	 */
-	private static function stats_for_group(): array {
-		global $wpdb;
-
-		$groups_table  = esc_sql( $wpdb->prefix . 'actionscheduler_groups' );
-		$actions_table = esc_sql( $wpdb->prefix . 'actionscheduler_actions' );
-
-		$group_id = $wpdb->get_var(
-			$wpdb->prepare(
-				'SELECT group_id FROM %i WHERE slug = %s',
-				$groups_table,
-				'alpha-chat'
-			)
-		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-
-		if ( ! $group_id ) {
-			return [ 'pending' => 0, 'in_progress' => 0, 'complete' => 0, 'failed' => 0 ];
-		}
-
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				'SELECT status, COUNT(*) AS c FROM %i WHERE group_id = %d GROUP BY status',
-				$actions_table,
-				(int) $group_id
-			),
-			ARRAY_A
-		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-
-		$out = [ 'pending' => 0, 'in_progress' => 0, 'complete' => 0, 'failed' => 0 ];
-		foreach ( (array) $rows as $row ) {
-			$status = str_replace( '-', '_', (string) $row['status'] );
-			if ( isset( $out[ $status ] ) ) {
-				$out[ $status ] = (int) $row['c'];
-			}
-		}
-		return $out;
 	}
 
 	public function list_post_types(): WP_REST_Response {

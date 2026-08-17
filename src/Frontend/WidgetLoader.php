@@ -75,6 +75,13 @@ final class WidgetLoader {
 			'alphaChatClient',
 			[
 				'restUrl'               => esc_url_raw( rest_url( RouteRegistrar::NAMESPACE ) ),
+				'restRoute'             => esc_url_raw(
+					add_query_arg(
+						'rest_route',
+						'/' . RouteRegistrar::NAMESPACE,
+						home_url( '/' )
+					)
+				),
 				'nonce'                 => wp_create_nonce( 'wp_rest' ),
 				'welcomeMessage'        => (string) $settings['welcome_message'],
 				'fallbackMessage'       => (string) $settings['fallback_message'],

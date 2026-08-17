@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-17
+
+### Fixed
+- Public chat no longer dies with `Unexpected token '<'` when `/wp-json/` returns HTML. The widget retries `?rest_route=/alpha-chat/v1/chat` and shows a retry message instead of the fallback answer plus a parse dump.
+
+### Changed
+- Dashboard cards, queue tiles, and the activity chart are interactive. Range is 7 / 14 / 30 days.
+- Dashboard uses one `GET /dashboard` request. Queue polling only runs while jobs are active and the tab is visible.
+
 ## [0.2.0] - 2026-08-17
 
 ### Added

@@ -216,7 +216,22 @@ export type ChartData = {
 	sessions: number[];
 };
 
+export type QueueStats = {
+	pending: number;
+	in_progress: number;
+	complete: number;
+	failed: number;
+};
+
+export type DashboardData = {
+	stats: Stats;
+	queue: QueueStats;
+	chart: ChartData;
+};
+
 export const adminApi = {
+	getDashboard: ( days: number ) =>
+		api< DashboardData >( '/dashboard', { query: { days } } ),
 	getSettings: () => api< SettingsResponse >( '/settings' ),
 	saveSettings: ( data: Partial< Settings > ) =>
 		api< SettingsResponse >( '/settings', {

@@ -44,6 +44,7 @@ type Position = 'left' | 'center' | 'right';
 
 type ClientData = {
 	restUrl: string;
+	restRoute?: string;
 	nonce: string;
 	welcomeMessage: string;
 	fallbackMessage: string;
@@ -84,7 +85,82 @@ function chatHeaders( nonce: string ): Record< string, string > {
 	return {
 		'Content-Type': 'application/json',
 		'X-WP-Nonce': nonce,
+		Accept: 'application/json',
 	};
+}
+
+function joinChatUrl( base: string, path: string ): string {
+	const url = new URL( base, window.location.origin );
+	const route = url.searchParams.get( 'rest_route' );
+	const suffix = path.replace( /^\//, '' );
+	if ( route ) {
+		url.searchParams.set(
+			'rest_route',
+			`${ route.replace( /\/$/, '' ) }/${ suffix }`
+		);
+		return url.toString();
+	}
+	url.pathname = `${ url.pathname.replace( /\/$/, '' ) }/${ suffix }`;
+	return url.toString();
+}
+
+function chatUrls( client: ClientData, path: string ): string[] {
+	const urls: string[] = [];
+	if ( client.restUrl ) {
+		urls.push( joinChatUrl( client.restUrl, path ) );
+	}
+	if ( client.restRoute ) {
+		urls.push( joinChatUrl( client.restRoute, path ) );
+	} else if ( client.restUrl ) {
+		try {
+			const origin = new URL( client.restUrl, window.location.origin )
+				.origin;
+			const fallback = new URL( '/', origin );
+			fallback.searchParams.set(
+				'rest_route',
+				`/alpha-chat/v1/${ path.replace( /^\//, '' ) }`
+			);
+			urls.push( fallback.toString() );
+		} catch {
+			/* ignore */
+		}
+	}
+	return [ ...new Set( urls ) ];
+}
+
+function parseJsonSafe( raw: string ): Record< string, unknown > | null {
+	const trimmed = raw.trim();
+	if (
+		! trimmed ||
+		trimmed.startsWith( '<' ) ||
+		trimmed.startsWith( '<!' )
+	) {
+		return null;
+	}
+	try {
+		const data = JSON.parse( trimmed ) as unknown;
+		return data && typeof data === 'object'
+			? ( data as Record< string, unknown > )
+			: null;
+	} catch {
+		return null;
+	}
+}
+
+function requestFailedMessage(
+	status: number,
+	data: Record< string, unknown > | null
+): string {
+	if ( data && typeof data.message === 'string' && data.message ) {
+		return data.message;
+	}
+	if ( status === 403 || status === 401 ) {
+		return 'This chat session expired. Refresh the page and try again.';
+	}
+	if ( status === 0 || status >= 500 ) {
+		return 'The chat service is temporarily unavailable. Please try again.';
+	}
+	return 'The chat service could not be reached. Please try again.';
 }
 
 function parseSseChunk( buffer: string ): {
@@ -116,23 +192,35 @@ async function sendChatJson(
 	client: ClientData,
 	payload: Record< string, string | null >
 ): Promise< ChatResponse > {
-	const response = await fetch( `${ client.restUrl }/chat`, {
-		method: 'POST',
-		headers: chatHeaders( client.nonce ),
-		credentials: 'same-origin',
-		body: JSON.stringify( payload ),
-	} );
-	const raw = await response.text();
-	const data = raw
-		? ( JSON.parse( raw ) as ChatResponse | { message?: string } )
-		: null;
-	if ( ! response.ok || ! data || ! ( 'reply' in data ) ) {
-		throw new Error(
-			( data && 'message' in data && data.message ) ||
-				`Request failed (${ response.status })`
-		);
+	let lastStatus = 0;
+	let lastData: Record< string, unknown > | null = null;
+
+	for ( const url of chatUrls( client, 'chat' ) ) {
+		const response = await fetch( url, {
+			method: 'POST',
+			headers: chatHeaders( client.nonce ),
+			credentials: 'same-origin',
+			body: JSON.stringify( payload ),
+		} );
+		lastStatus = response.status;
+		const raw = await response.text();
+		lastData = parseJsonSafe( raw );
+		if ( lastData && typeof lastData.reply === 'string' ) {
+			return {
+				thread_uuid: String( lastData.thread_uuid ?? '' ),
+				reply: lastData.reply,
+				flagged: Boolean( lastData.flagged ),
+				sources: Array.isArray( lastData.sources )
+					? ( lastData.sources as Source[] )
+					: [],
+			};
+		}
+		if ( lastData && response.ok === false ) {
+			throw new Error( requestFailedMessage( lastStatus, lastData ) );
+		}
 	}
-	return data;
+
+	throw new Error( requestFailedMessage( lastStatus, lastData ) );
 }
 
 async function sendChatStream(
@@ -140,21 +228,28 @@ async function sendChatStream(
 	payload: Record< string, string | null >,
 	onDelta: ( text: string ) => void
 ): Promise< ChatResponse > {
-	const response = await fetch( `${ client.restUrl }/chat/stream`, {
-		method: 'POST',
-		headers: {
-			...chatHeaders( client.nonce ),
-			Accept: 'text/event-stream',
-		},
-		credentials: 'same-origin',
-		body: JSON.stringify( payload ),
-	} );
-	const type = response.headers.get( 'content-type' ) ?? '';
-	if (
-		! response.ok ||
-		! response.body ||
-		! type.includes( 'text/event-stream' )
-	) {
+	let response: Response | null = null;
+	for ( const url of chatUrls( client, 'chat/stream' ) ) {
+		const attempt = await fetch( url, {
+			method: 'POST',
+			headers: {
+				...chatHeaders( client.nonce ),
+				Accept: 'text/event-stream',
+			},
+			credentials: 'same-origin',
+			body: JSON.stringify( payload ),
+		} );
+		const type = attempt.headers.get( 'content-type' ) ?? '';
+		if (
+			attempt.ok &&
+			attempt.body &&
+			type.includes( 'text/event-stream' )
+		) {
+			response = attempt;
+			break;
+		}
+	}
+	if ( ! response || ! response.body ) {
 		throw new Error( 'stream unavailable' );
 	}
 
@@ -354,7 +449,7 @@ function ContactForm( {
 		setBusy( true );
 		setErr( null );
 		try {
-			const response = await fetch( `${ client.restUrl }/contact`, {
+			const response = await fetch( chatUrls( client, 'contact' )[ 0 ], {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				credentials: 'same-origin',
@@ -532,15 +627,15 @@ function ChatPanel( {
 				)
 			);
 		} catch ( e ) {
-			setError( e instanceof Error ? e.message : String( e ) );
+			setError(
+				e instanceof Error
+					? e.message
+					: 'The chat service could not be reached. Please try again.'
+			);
 			setMessages( ( current ) =>
-				current.map( ( item ) =>
-					item.id === assistantId
-						? {
-								...item,
-								content: item.content || client.fallbackMessage,
-						  }
-						: item
+				current.filter(
+					( item ) =>
+						item.id !== assistantId || item.content.trim() !== ''
 				)
 			);
 		} finally {

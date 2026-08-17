@@ -176,6 +176,8 @@ final class Plugin {
 			static fn ( Container $c ) => new SettingsController(
 				$c->get( SettingsRepository::class ),
 				$c->get( Indexer::class ),
+				$c->get( MessageRepository::class ),
+				$c->get( ReindexScheduler::class ),
 			),
 		);
 
