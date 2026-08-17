@@ -62,7 +62,7 @@ final class DatabaseVectorStore implements VectorStore {
 		global $wpdb;
 
 		[ $source_type, $source_id, $chunk_index ] = self::parse_id( $id );
-		$table = Schema::chunks_table();
+		$table                                     = Schema::chunks_table();
 
 		if ( -1 === $chunk_index ) {
 			$wpdb->delete(
@@ -93,10 +93,10 @@ final class DatabaseVectorStore implements VectorStore {
 	 * @return list<array{id: string, score: float, metadata: array<string, mixed>}>
 	 */
 	public function search( array $query, int $limit = 5, float $threshold = 0.0, string $embedding_model = '', array $options = [] ): array {
-		$text_query        = trim( (string) ( $options['text_query'] ?? '' ) );
-		$prefer_source_id  = (int) ( $options['prefer_source_id'] ?? 0 );
-		$prefer_bonus      = (float) ( $options['prefer_bonus'] ?? 0.05 );
-		$prefer_force      = (int) ( $options['prefer_force'] ?? 2 );
+		$text_query       = trim( (string) ( $options['text_query'] ?? '' ) );
+		$prefer_source_id = (int) ( $options['prefer_source_id'] ?? 0 );
+		$prefer_bonus     = (float) ( $options['prefer_bonus'] ?? 0.05 );
+		$prefer_force     = (int) ( $options['prefer_force'] ?? 2 );
 
 		$rows = $this->candidate_rows( $text_query, $embedding_model, $prefer_source_id );
 
@@ -109,8 +109,8 @@ final class DatabaseVectorStore implements VectorStore {
 		 */
 		$rows = (array) apply_filters( 'alpha_chat_retrieval_candidates', $rows, $text_query, $embedding_model );
 
-		$scored         = [];
-		$preferred      = [];
+		$scored    = [];
+		$preferred = [];
 		foreach ( $rows as $row ) {
 			if ( ! is_array( $row ) ) {
 				continue;
@@ -183,7 +183,18 @@ final class DatabaseVectorStore implements VectorStore {
 		}
 
 		if ( empty( $by_id ) ) {
-			foreach ( $this->fallback_rows( $embedding_model, 2000 ) as $row ) {
+			/**
+			 * Filter how many chunks are scanned when FULLTEXT finds nothing.
+			 *
+			 * Every candidate is unpacked and cosine-scored in PHP on the request
+			 * that the visitor is waiting on, so this is a latency budget, not a
+			 * recall setting. Raise it only if the site is small.
+			 *
+			 * @param int $limit Maximum candidate rows.
+			 */
+			$limit = (int) apply_filters( 'alpha_chat_fallback_candidates', 400 );
+
+			foreach ( $this->fallback_rows( $embedding_model, max( 1, $limit ) ) as $row ) {
 				$by_id[ (int) $row['id'] ] = $row;
 			}
 		}
@@ -202,7 +213,7 @@ final class DatabaseVectorStore implements VectorStore {
 
 		$table = Schema::chunks_table();
 
-		$sql = 'SELECT id, source_type, source_id, chunk_index, content, token_count, embedding FROM ' . esc_sql( $table ) . " WHERE status = 'ready' AND embedding IS NOT NULL";
+		$sql  = 'SELECT id, source_type, source_id, chunk_index, content, token_count, embedding FROM ' . esc_sql( $table ) . " WHERE status = 'ready' AND embedding IS NOT NULL";
 		$args = [];
 		if ( '' !== $embedding_model ) {
 			$sql   .= ' AND embedding_model = %s';
@@ -238,7 +249,7 @@ final class DatabaseVectorStore implements VectorStore {
 		global $wpdb;
 		$table = Schema::chunks_table();
 
-		$sql = 'SELECT id, source_type, source_id, chunk_index, content, token_count, embedding FROM ' . esc_sql( $table ) . " WHERE status = 'ready' AND embedding IS NOT NULL AND source_type = %s AND source_id = %d";
+		$sql  = 'SELECT id, source_type, source_id, chunk_index, content, token_count, embedding FROM ' . esc_sql( $table ) . " WHERE status = 'ready' AND embedding IS NOT NULL AND source_type = %s AND source_id = %d";
 		$args = [ $source_type, $source_id ];
 		if ( '' !== $embedding_model ) {
 			$sql   .= ' AND embedding_model = %s';
@@ -267,7 +278,7 @@ final class DatabaseVectorStore implements VectorStore {
 		global $wpdb;
 		$table = Schema::chunks_table();
 
-		$sql = 'SELECT id, source_type, source_id, chunk_index, content, token_count, embedding FROM ' . esc_sql( $table ) . " WHERE status = 'ready' AND embedding IS NOT NULL";
+		$sql  = 'SELECT id, source_type, source_id, chunk_index, content, token_count, embedding FROM ' . esc_sql( $table ) . " WHERE status = 'ready' AND embedding IS NOT NULL";
 		$args = [];
 		if ( '' !== $embedding_model ) {
 			$sql   .= ' AND embedding_model = %s';
@@ -314,7 +325,7 @@ final class DatabaseVectorStore implements VectorStore {
 		}
 
 		global $wpdb;
-		$driver = strtolower( $wpdb::class );
+		$driver    = strtolower( $wpdb::class );
 		$supported = ! str_contains( $driver, 'sqlite' );
 
 		return $supported;

@@ -110,48 +110,98 @@ final class ThreadsController {
 		return new WP_REST_Response( $this->messages->daily_chart( $days ) );
 	}
 
+	/**
+	 * Stream the transcript archive as CSV.
+	 *
+	 * WP_REST_Server JSON-encodes whatever a controller returns, so a CSV body
+	 * handed back as response data arrives as a quoted JSON string. This takes
+	 * over the response via rest_pre_serve_request and writes the file directly,
+	 * a row at a time, so a large archive never has to fit in memory.
+	 */
 	public function export( WP_REST_Request $request ): WP_REST_Response {
 		unset( $request );
 
-		$rows       = [ [ 'thread_uuid', 'origin_url', 'created_at', 'role', 'content' ] ];
-		$page       = 1;
+		add_filter( 'rest_pre_serve_request', [ $this, 'serve_export' ], 10, 2 );
+
+		return new WP_REST_Response();
+	}
+
+	public function serve_export( bool $served, WP_REST_Response $response ): bool {
+		unset( $response );
+
+		remove_filter( 'rest_pre_serve_request', [ $this, 'serve_export' ], 10 );
+
+		if ( $served ) {
+			return $served;
+		}
+
+		if ( ! headers_sent() ) {
+			header( 'Content-Type: text/csv; charset=utf-8' );
+			header( 'Content-Disposition: attachment; filename="alpha-chat-threads.csv"' );
+			header( 'Cache-Control: no-store, no-cache, must-revalidate' );
+			// Without this the browser may sniff the CSV and render it inline.
+			header( 'X-Content-Type-Options: nosniff' );
+		}
+
+		$handle = fopen( 'php://output', 'w' );
+		if ( false === $handle ) {
+			return true;
+		}
+
+		// Excel needs a BOM to read UTF-8 content correctly.
+		echo "\xEF\xBB\xBF"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- UTF-8 byte order mark.
+
+		self::put_row( $handle, [ 'thread_uuid', 'origin_url', 'created_at', 'role', 'content' ] );
+
+		$page = 1;
 		do {
 			$threads = $this->threads->list( 100, $page );
 			foreach ( $threads as $thread ) {
 				foreach ( $this->messages->for_thread( (int) $thread['id'], 1000 ) as $message ) {
-					$rows[] = [
-						$thread['uuid'],
-						(string) ( $thread['origin_url'] ?? '' ),
-						$message['created_at'],
-						$message['role'],
-						$message['content'],
-					];
+					self::put_row(
+						$handle,
+						[
+							(string) $thread['uuid'],
+							(string) ( $thread['origin_url'] ?? '' ),
+							(string) $message['created_at'],
+							(string) $message['role'],
+							(string) $message['content'],
+						]
+					);
 				}
 			}
-			$page++;
+			++$page;
+			flush();
 		} while ( ! empty( $threads ) );
 
-		$handle = fopen( 'php://temp', 'w+' );
-		if ( false === $handle ) {
-			return new WP_REST_Response( [ 'message' => __( 'Unable to create export stream.', 'alpha-chat' ) ], 500 );
-		}
-		foreach ( $rows as $row ) {
-			fputcsv( $handle, $row );
-		}
-		rewind( $handle );
-		$csv = (string) stream_get_contents( $handle );
 		fclose( $handle );
 
-		$response = new WP_REST_Response();
-		$response->set_headers(
-			[
-				'Content-Type'        => 'text/csv; charset=utf-8',
-				'Content-Disposition' => 'attachment; filename="alpha-chat-threads.csv"',
-			]
-		);
-		$response->set_data( $csv );
+		return true;
+	}
 
-		return $response;
+	/**
+	 * @param resource     $handle
+	 * @param list<string> $row
+	 */
+	private static function put_row( $handle, array $row ): void {
+		// PHP 8.4 deprecates the implicit escape character; "" selects RFC 4180
+		// quoting, which is what spreadsheet software actually expects.
+		fputcsv( $handle, array_map( [ self::class, 'defuse' ], $row ), ',', '"', '' );
+	}
+
+	/**
+	 * Neutralise spreadsheet formula injection.
+	 *
+	 * Transcript content is visitor-authored. A cell starting with =, +, -, @ or
+	 * a control character is executed as a formula when the export is opened in
+	 * Excel or Sheets, so it is prefixed with a quote to force a literal string.
+	 */
+	public static function defuse( string $value ): string {
+		if ( '' === $value ) {
+			return $value;
+		}
+
+		return preg_match( '/^[=+\-@\t\r]/', $value ) ? "'" . $value : $value;
 	}
 
 	/**

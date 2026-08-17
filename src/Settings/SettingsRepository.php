@@ -10,8 +10,23 @@ final class SettingsRepository {
 
 	public const OPTION_KEY = 'alpha_chat_settings';
 
+	/**
+	 * Resolved settings for this request.
+	 *
+	 * Rebuilding meant a recursive merge, a filter pass, and several get_option
+	 * and translation calls on every single get(), which a chat turn makes dozens
+	 * of times.
+	 *
+	 * @var array<string, mixed>|null
+	 */
+	private ?array $resolved = null;
+
 	/** @return array<string, mixed> */
 	public function all(): array {
+		if ( null !== $this->resolved ) {
+			return $this->resolved;
+		}
+
 		$saved = get_option( self::OPTION_KEY, [] );
 		if ( ! is_array( $saved ) ) {
 			$saved = [];
@@ -20,7 +35,16 @@ final class SettingsRepository {
 		$settings               = array_replace_recursive( self::defaults(), $saved );
 		$settings['chat_model'] = ModelCatalog::remap_chat_model( (string) ( $settings['chat_model'] ?? '' ) );
 
+		$this->resolved = $settings;
+
 		return $settings;
+	}
+
+	/**
+	 * Drop the per-request cache. Call after the stored option changes.
+	 */
+	public function flush(): void {
+		$this->resolved = null;
 	}
 
 	public function get( string $key, mixed $default = null ): mixed {
@@ -35,6 +59,7 @@ final class SettingsRepository {
 	public function update( array $input ): array {
 		$sanitized = $this->sanitize( $input );
 		update_option( self::OPTION_KEY, $sanitized, false );
+		$this->flush();
 		return $this->all();
 	}
 
@@ -61,12 +86,24 @@ final class SettingsRepository {
 			$output['reasoning_effort'] = ReasoningMap::sanitize( (string) $input['reasoning_effort'] );
 		}
 
+		// An explicit opt-in to erase a stored key. Without it, a blank value is
+		// treated as "unchanged" so the masked round-trip cannot wipe a secret —
+		// which previously left no way at all to remove one.
+		$clear = [];
+		if ( isset( $input['clear_secrets'] ) && is_array( $input['clear_secrets'] ) ) {
+			$clear = array_map( 'strval', $input['clear_secrets'] );
+		}
+
 		$secret_keys = ModelCatalog::secret_keys();
 		foreach ( $secret_keys as $key ) {
+			if ( in_array( $key, $clear, true ) ) {
+				$output[ $key ] = '';
+				continue;
+			}
 			if ( ! array_key_exists( $key, $input ) ) {
 				continue;
 			}
-			$value = (string) $input[ $key ];
+			$value = trim( (string) $input[ $key ] );
 			if ( '' === $value || str_contains( $value, '•' ) ) {
 				continue;
 			}
@@ -92,10 +129,10 @@ final class SettingsRepository {
 		}
 
 		$int_keys = [
-			'max_context_chunks'  => [ 1, 20 ],
-			'chunk_size_tokens'   => [ 64, 2048 ],
+			'max_context_chunks'   => [ 1, 20 ],
+			'chunk_size_tokens'    => [ 64, 2048 ],
 			'chunk_overlap_tokens' => [ 0, 512 ],
-			'max_response_tokens' => [ 64, 4096 ],
+			'max_response_tokens'  => [ 64, 4096 ],
 		];
 		foreach ( $int_keys as $key => [ $min, $max ] ) {
 			if ( isset( $input[ $key ] ) ) {
@@ -137,14 +174,17 @@ final class SettingsRepository {
 	}
 
 	/**
-	 * Mask secret values for display. Returns a placeholder of bullets matching real length.
+	 * Mask a secret for display.
+	 *
+	 * Fixed width on purpose: a length-proportional mask told anyone who could
+	 * read the settings how long the real key is.
 	 */
 	public static function mask_secret( string $value ): string {
 		if ( '' === $value ) {
 			return '';
 		}
-		$length = min( 24, max( 8, strlen( $value ) ) );
-		return str_repeat( '•', $length );
+
+		return str_repeat( '•', 16 );
 	}
 
 	/**
@@ -198,10 +238,10 @@ final class SettingsRepository {
 				'system_prompt'              => __( 'You are a helpful assistant. Answer using the provided context. If the answer is not in the context, say so.', 'alpha-chat' ),
 				'predefined_questions'       => [],
 				'colors'                     => [
-					'background'          => '#ffffff',
-					'assistant_bubble'    => '#eef2ff',
-					'user_bubble'         => '#1f2937',
-					'accent'              => '#4f46e5',
+					'background'       => '#ffffff',
+					'assistant_bubble' => '#eef2ff',
+					'user_bubble'      => '#1f2937',
+					'accent'           => '#4f46e5',
 				],
 			]
 		);

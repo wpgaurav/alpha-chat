@@ -128,6 +128,38 @@ function chatUrls( client: ClientData, path: string ): string[] {
 	return [ ...new Set( urls ) ];
 }
 
+/**
+ * Replace a nonce that a page cache served past its lifetime.
+ *
+ * The nonce is baked into the HTML, so once a cached page outlives it every
+ * request 403s and reloading just re-serves the same stale value. Returns true
+ * when a fresh nonce was obtained and the request is worth repeating.
+ * @param client
+ */
+async function refreshNonce( client: ClientData ): Promise< boolean > {
+	for ( const url of chatUrls( client, 'nonce' ) ) {
+		try {
+			const response = await fetch( url, {
+				credentials: 'same-origin',
+				headers: { Accept: 'application/json' },
+			} );
+			if ( ! response.ok ) {
+				continue;
+			}
+			const data = parseJsonSafe( await response.text() );
+			const fresh =
+				data && typeof data.nonce === 'string' ? data.nonce : '';
+			if ( fresh && fresh !== client.nonce ) {
+				client.nonce = fresh;
+				return true;
+			}
+		} catch {
+			/* try the next route form */
+		}
+	}
+	return false;
+}
+
 function parseJsonSafe( raw: string ): Record< string, unknown > | null {
 	const trimmed = raw.trim();
 	if (
@@ -145,6 +177,64 @@ function parseJsonSafe( raw: string ): Record< string, unknown > | null {
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * A chat failure, tagged with whether it is safe to try another transport.
+ *
+ * `retryable` means the request never reached the plugin — a dead socket or a
+ * route form this install does not expose. Anything the server actually handled
+ * is NOT retryable: the completion may already have been generated and billed,
+ * and retrying would pay for it twice and duplicate the thread history.
+ */
+class ChatError extends Error {
+	retryable: boolean;
+
+	/**
+	 * The nonce was rejected. This happens in permission_callback, before the
+	 * route runs, so no completion was generated and a retry costs nothing.
+	 */
+	nonceExpired: boolean;
+
+	constructor( message: string, retryable = false, nonceExpired = false ) {
+		super( message );
+		this.name = 'ChatError';
+		this.retryable = retryable;
+		this.nonceExpired = nonceExpired;
+	}
+}
+
+function isNonceFailure(
+	status: number,
+	data: Record< string, unknown > | null
+): boolean {
+	if ( status !== 401 && status !== 403 ) {
+		return false;
+	}
+	const code = data && typeof data.code === 'string' ? data.code : '';
+	// Anything else at 403 (chat disabled) must not trigger a nonce retry.
+	return (
+		code === '' ||
+		code.startsWith( 'rest_cookie' ) ||
+		code === 'rest_forbidden'
+	);
+}
+
+/**
+ * True when the response proves the plugin's route never ran, so the next
+ * candidate URL can be tried without risking a duplicate completion.
+ * @param status
+ * @param data
+ */
+function isRouteMiss(
+	status: number,
+	data: Record< string, unknown > | null
+): boolean {
+	if ( status !== 404 ) {
+		return false;
+	}
+	// A REST 404 names the missing route; a bare HTML 404 never parsed as JSON.
+	return ! data || data.code === 'rest_no_route';
 }
 
 function requestFailedMessage(
@@ -192,35 +282,53 @@ async function sendChatJson(
 	client: ClientData,
 	payload: Record< string, string | null >
 ): Promise< ChatResponse > {
-	let lastStatus = 0;
-	let lastData: Record< string, unknown > | null = null;
+	let lastError = new ChatError( requestFailedMessage( 0, null ), true );
 
 	for ( const url of chatUrls( client, 'chat' ) ) {
-		const response = await fetch( url, {
-			method: 'POST',
-			headers: chatHeaders( client.nonce ),
-			credentials: 'same-origin',
-			body: JSON.stringify( payload ),
-		} );
-		lastStatus = response.status;
-		const raw = await response.text();
-		lastData = parseJsonSafe( raw );
-		if ( lastData && typeof lastData.reply === 'string' ) {
+		let response: Response;
+		try {
+			response = await fetch( url, {
+				method: 'POST',
+				headers: chatHeaders( client.nonce ),
+				credentials: 'same-origin',
+				body: JSON.stringify( payload ),
+			} );
+		} catch {
+			// Nothing reached the server, so the next candidate is free to try.
+			lastError = new ChatError( requestFailedMessage( 0, null ), true );
+			continue;
+		}
+
+		const data = parseJsonSafe( await response.text() );
+
+		if ( data && typeof data.reply === 'string' ) {
 			return {
-				thread_uuid: String( lastData.thread_uuid ?? '' ),
-				reply: lastData.reply,
-				flagged: Boolean( lastData.flagged ),
-				sources: Array.isArray( lastData.sources )
-					? ( lastData.sources as Source[] )
+				thread_uuid: String( data.thread_uuid ?? '' ),
+				reply: data.reply,
+				flagged: Boolean( data.flagged ),
+				sources: Array.isArray( data.sources )
+					? ( data.sources as Source[] )
 					: [],
 			};
 		}
-		if ( lastData && response.ok === false ) {
-			throw new Error( requestFailedMessage( lastStatus, lastData ) );
+
+		if ( isRouteMiss( response.status, data ) ) {
+			lastError = new ChatError(
+				requestFailedMessage( response.status, data ),
+				true
+			);
+			continue;
 		}
+
+		// The plugin handled this and did not produce a reply. Stop here.
+		throw new ChatError(
+			requestFailedMessage( response.status, data ),
+			false,
+			isNonceFailure( response.status, data )
+		);
 	}
 
-	throw new Error( requestFailedMessage( lastStatus, lastData ) );
+	throw lastError;
 }
 
 async function sendChatStream(
@@ -229,16 +337,25 @@ async function sendChatStream(
 	onDelta: ( text: string ) => void
 ): Promise< ChatResponse > {
 	let response: Response | null = null;
+	let lastError = new ChatError( requestFailedMessage( 0, null ), true );
+
 	for ( const url of chatUrls( client, 'chat/stream' ) ) {
-		const attempt = await fetch( url, {
-			method: 'POST',
-			headers: {
-				...chatHeaders( client.nonce ),
-				Accept: 'text/event-stream',
-			},
-			credentials: 'same-origin',
-			body: JSON.stringify( payload ),
-		} );
+		let attempt: Response;
+		try {
+			attempt = await fetch( url, {
+				method: 'POST',
+				headers: {
+					...chatHeaders( client.nonce ),
+					Accept: 'text/event-stream',
+				},
+				credentials: 'same-origin',
+				body: JSON.stringify( payload ),
+			} );
+		} catch {
+			lastError = new ChatError( requestFailedMessage( 0, null ), true );
+			continue;
+		}
+
 		const type = attempt.headers.get( 'content-type' ) ?? '';
 		if (
 			attempt.ok &&
@@ -248,9 +365,40 @@ async function sendChatStream(
 			response = attempt;
 			break;
 		}
+
+		// The server answers this route with plain JSON when it cannot stream
+		// (output already flushed). That is a real, already-paid completion —
+		// use it instead of discarding it and asking for another one.
+		const data = parseJsonSafe( await attempt.text() );
+		if ( data && typeof data.reply === 'string' ) {
+			onDelta( data.reply );
+			return {
+				thread_uuid: String( data.thread_uuid ?? '' ),
+				reply: data.reply,
+				flagged: Boolean( data.flagged ),
+				sources: Array.isArray( data.sources )
+					? ( data.sources as Source[] )
+					: [],
+			};
+		}
+
+		if ( isRouteMiss( attempt.status, data ) ) {
+			lastError = new ChatError(
+				requestFailedMessage( attempt.status, data ),
+				true
+			);
+			continue;
+		}
+
+		throw new ChatError(
+			requestFailedMessage( attempt.status, data ),
+			false,
+			isNonceFailure( attempt.status, data )
+		);
 	}
+
 	if ( ! response || ! response.body ) {
-		throw new Error( 'stream unavailable' );
+		throw lastError;
 	}
 
 	const reader = response.body.getReader();
@@ -283,7 +431,9 @@ async function sendChatStream(
 			if ( item.event === 'delta' && body.text ) {
 				onDelta( body.text );
 			} else if ( item.event === 'error' ) {
-				throw new Error( body.message || 'Stream failed' );
+				// The server owned this request. Surface the failure rather than
+				// silently re-asking over another transport.
+				throw new ChatError( body.message || 'Stream failed' );
 			} else if ( item.event === 'done' && body.reply !== undefined ) {
 				donePayload = {
 					thread_uuid: body.thread_uuid ?? '',
@@ -296,7 +446,11 @@ async function sendChatStream(
 	}
 
 	if ( ! donePayload ) {
-		throw new Error( 'stream incomplete' );
+		// The connection dropped mid-answer. The server already did the work, so
+		// asking again would pay twice; report it instead.
+		throw new ChatError(
+			'The answer was cut off before it finished. Please try again.'
+		);
 	}
 	return donePayload;
 }
@@ -448,10 +602,13 @@ function ContactForm( {
 	async function submit() {
 		setBusy( true );
 		setErr( null );
-		try {
-			const response = await fetch( chatUrls( client, 'contact' )[ 0 ], {
+
+		// The contact route sends mail, so it now requires the same nonce as the
+		// chat routes rather than being open to anonymous callers.
+		const post = () =>
+			fetch( chatUrls( client, 'contact' )[ 0 ], {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: chatHeaders( client.nonce ),
 				credentials: 'same-origin',
 				body: JSON.stringify( {
 					name,
@@ -460,6 +617,22 @@ function ContactForm( {
 					thread: threadUuid,
 				} ),
 			} );
+
+		try {
+			let response = await post();
+
+			// A cached page can carry an expired nonce; the rejection happens
+			// before the route runs, so retrying once is free.
+			if (
+				isNonceFailure(
+					response.status,
+					await response.clone().text().then( parseJsonSafe )
+				) &&
+				( await refreshNonce( client ) )
+			) {
+				response = await post();
+			}
+
 			const data = await response.json();
 			if ( ! response.ok || ! data?.ok ) {
 				throw new Error( data?.message || 'Submission failed' );
@@ -585,10 +758,9 @@ function ChatPanel( {
 			origin_title: document.title,
 		};
 
-		try {
-			let data: ChatResponse;
+		const deliver = async (): Promise< ChatResponse > => {
 			try {
-				data = await sendChatStream( client, payload, ( text ) => {
+				return await sendChatStream( client, payload, ( text ) => {
 					setMessages( ( current ) =>
 						current.map( ( item ) =>
 							item.id === assistantId
@@ -600,8 +772,38 @@ function ChatPanel( {
 						)
 					);
 				} );
-			} catch {
-				data = await sendChatJson( client, payload );
+			} catch ( streamError ) {
+				// Only reach for the non-streaming route when the streaming one
+				// never got through. A server-side failure is reported as-is so a
+				// single message can never trigger a second paid completion.
+				if (
+					streamError instanceof ChatError &&
+					! streamError.retryable
+				) {
+					throw streamError;
+				}
+				return await sendChatJson( client, payload );
+			}
+		};
+
+		try {
+			let data: ChatResponse;
+			try {
+				data = await deliver();
+			} catch ( first ) {
+				// A rejected nonce is refused by permission_callback before the
+				// route runs, so nothing was generated or billed and exactly one
+				// retry with a fresh nonce is safe.
+				if (
+					! ( first instanceof ChatError ) ||
+					! first.nonceExpired
+				) {
+					throw first;
+				}
+				if ( ! ( await refreshNonce( client ) ) ) {
+					throw first;
+				}
+				data = await deliver();
 			}
 			if ( data.thread_uuid ) {
 				setThreadUuid( data.thread_uuid );

@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-17
+
+Security and correctness release from a full audit of the plugin. Please read the
+upgrade notes below if your site sits behind a proxy other than Cloudflare, or if
+anything calls the contact endpoint directly.
+
+### Security
+- Rate limiting no longer trusts `X-Forwarded-For` from arbitrary callers. The header
+  was accepted unconditionally, so rotating it gave every request its own bucket and
+  left provider spend effectively uncapped. Forwarding headers are now honoured only
+  when the request actually arrives from a trusted proxy. Cloudflare's published edge
+  ranges are trusted out of the box; anything else is declared with the
+  `ALPHA_CHAT_TRUSTED_PROXIES` constant or the `alpha_chat_trusted_proxies` filter.
+- Added a site-wide chat and contact ceiling that no client-supplied identifier can
+  partition, as a backstop on total provider spend.
+- `POST /contact` now requires a valid `wp_rest` nonce. It was previously open to
+  unauthenticated callers and sent mail on every request.
+- Resuming a conversation now requires the caller to own it. A thread uuid alone used
+  to be enough, and history is replayed into the prompt, so a leaked uuid exposed the
+  earlier conversation.
+- The current-page context injected into the prompt is now restricted to this site.
+  An off-site `origin_url` with an attacker-chosen `origin_title` could previously
+  write arbitrary text into the system prompt.
+- Transcript CSV export now neutralises spreadsheet formula injection from
+  visitor-authored message content.
+- Masked API keys are a fixed width and no longer reveal the real key length.
+
+### Fixed
+- A single chat message could trigger more than one paid completion. The widget
+  retried across transports after the server had already answered, duplicating both
+  the provider charge and the stored thread history. It now retries only when the
+  request never reached the plugin.
+- Transcript CSV export returned a JSON-encoded string rather than a CSV file, so the
+  download could not be opened as a spreadsheet. It now streams real CSV, row by row,
+  and no longer loads the whole archive into memory.
+- The "Add to Alpha Chat" post row action rendered a button whose handler was never
+  loaded, so clicking it did nothing.
+- Stored API keys could not be cleared from the settings screen.
+- A chat widget on a cached page recovers from an expired nonce instead of failing
+  with a message that a reload could not fix.
+- Restoring a post from the trash returns it to the knowledge base.
+- `delete_post` no longer runs knowledge-base cleanup for revisions and autosaves.
+- Update checks cache failures, so an unreachable licence server no longer adds a
+  blocking request to every admin page load.
+- Token counting handles CJK text, which was undercounted roughly fourfold and
+  produced oversized chunks.
+- Follow-up detection no longer treats every short message as a follow-up, which was
+  dragging the previous topic into retrieval after a clean subject change.
+- Uninstall cleans every site on a multisite network and unschedules its Action
+  Scheduler jobs; network activation installs tables on every site.
+
+### Changed
+- Curated Q&A is now ranked against the question and capped before it enters the
+  prompt, instead of sending every enabled entry on every message.
+- Settings are resolved once per request rather than rebuilt on each read.
+- Retrieval scans a bounded candidate set when the fulltext index returns nothing.
+- Errors and warnings are logged without requiring `WP_DEBUG`.
+- Outbound fetches for the FAQ importer go through `wp_safe_remote_request`, and the
+  pre-flight check covers IPv6 and literal addresses.
+- The settings response reports whether moderation is actually active, which requires
+  an OpenAI key regardless of the chat provider.
+
+### Added
+- `alpha_chat_trusted_proxies`, `alpha_chat_trust_cloudflare`, `alpha_chat_rate_limit`,
+  `alpha_chat_max_prompt_faqs`, `alpha_chat_fallback_candidates`,
+  `alpha_chat_max_queued_posts` and `alpha_chat_should_log` filters.
+- `GET /nonce` for widgets on cached pages.
+
+### Upgrade notes
+- Behind Cloudflare, nothing to do. Behind any other proxy or load balancer, declare
+  it or anonymous visitors will share rate-limit buckets:
+  `define( 'ALPHA_CHAT_TRUSTED_PROXIES', '10.0.0.0/8' );`
+- Anything posting to `/alpha-chat/v1/contact` must now send an `X-WP-Nonce` header.
+- `ChatController::is_rate_limited()` is deprecated in favour of
+  `AlphaChat\Support\RateLimiter::hit()`.
+
 ## [0.2.1] - 2026-08-17
 
 ### Fixed

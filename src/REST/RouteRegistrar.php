@@ -26,6 +26,25 @@ final class RouteRegistrar {
 			]
 		);
 
+		// The widget's nonce is printed into the page, so a full-page cache serves
+		// a stale one once it expires and every chat request 403s with no way for
+		// the visitor to recover. This endpoint is never cached, so the widget can
+		// mint a fresh nonce and retry.
+		register_rest_route(
+			self::NAMESPACE,
+			'/nonce',
+			[
+				'methods'             => 'GET',
+				'callback'            => static function (): \WP_REST_Response {
+					$response = new \WP_REST_Response( [ 'nonce' => wp_create_nonce( 'wp_rest' ) ] );
+					$response->set_headers( [ 'Cache-Control' => 'no-store, max-age=0' ] );
+
+					return $response;
+				},
+				'permission_callback' => '__return_true',
+			]
+		);
+
 		/** @var SettingsController $settings */
 		$settings = $this->container->get( SettingsController::class );
 		$settings->register( self::NAMESPACE );

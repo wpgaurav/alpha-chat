@@ -8,11 +8,12 @@ use WP_Error;
 
 final class LicenseManager {
 
-	private const SERVER_URL = 'https://gauravtiwari.org/';
-	private const ITEM_ID = 1172914;
-	private const OPTION_KEY = 'alpha_chat_license';
+	private const SERVER_URL   = 'https://gauravtiwari.org/';
+	private const ITEM_ID      = 1172914;
+	private const OPTION_KEY   = 'alpha_chat_license';
 	private const UPDATE_CACHE = 'alpha_chat_update_info';
-	private const PAGE_SLUG = 'alpha-chat-license';
+	private const PAGE_SLUG    = 'alpha-chat-license';
+	private const FAILURE_TTL  = HOUR_IN_SECONDS;
 
 	private string $plugin_basename;
 
@@ -49,10 +50,10 @@ final class LicenseManager {
 		$action = sanitize_key( wp_unslash( $_POST['alpha_chat_license_action'] ) );
 
 		if ( 'activate' === $action ) {
-			$key = isset( $_POST['license_key'] )
+			$key    = isset( $_POST['license_key'] )
 				? sanitize_text_field( wp_unslash( (string) $_POST['license_key'] ) )
 				: '';
-			$key = trim( $key );
+			$key    = trim( $key );
 			$result = $this->activate( $key );
 			if ( is_wp_error( $result ) ) {
 				add_settings_error( 'alpha_chat_license', 'activation_failed', $result->get_error_message(), 'error' );
@@ -158,15 +159,34 @@ final class LicenseManager {
 				$params['license_key'] = $license['license_key'];
 			}
 			$update = $this->request( 'get_license_version', $params );
-			if ( ! is_wp_error( $update ) ) {
+
+			if ( is_wp_error( $update ) ) {
+				// Cache the failure too. This filter runs several times per admin
+				// page load, and without a negative cache an unreachable licence
+				// server means a fresh 20-second blocking request every time.
+				set_transient( self::UPDATE_CACHE, [ 'failed' => true ], self::FAILURE_TTL );
+			} else {
 				set_transient( self::UPDATE_CACHE, $update, 12 * HOUR_IN_SECONDS );
 			}
 		}
 
-		if ( is_wp_error( $update ) || empty( $update['new_version'] ) ) {
+		if ( is_wp_error( $update ) || ! is_array( $update ) || ! empty( $update['failed'] ) || empty( $update['new_version'] ) ) {
 			return $transient;
 		}
 		if ( ! version_compare( (string) $update['new_version'], ALPHA_CHAT_VERSION, '>' ) ) {
+			// Declaring "no update" is what puts the plugin in the auto-update UI.
+			if ( ! isset( $transient->no_update ) || ! is_array( $transient->no_update ) ) {
+				$transient->no_update = [];
+			}
+			$transient->no_update[ $this->plugin_basename ] = (object) [
+				'id'          => $this->plugin_basename,
+				'slug'        => 'alpha-chat',
+				'plugin'      => $this->plugin_basename,
+				'new_version' => ALPHA_CHAT_VERSION,
+				'url'         => 'https://gauravtiwari.org/product/alpha-chat/',
+				'package'     => '',
+			];
+
 			return $transient;
 		}
 		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) {
@@ -193,7 +213,7 @@ final class LicenseManager {
 			return $result;
 		}
 		$update = get_transient( self::UPDATE_CACHE );
-		if ( ! is_array( $update ) ) {
+		if ( ! is_array( $update ) || ! empty( $update['failed'] ) ) {
 			return $result;
 		}
 		return (object) [
@@ -295,7 +315,7 @@ final class LicenseManager {
 		$parameters['current_version']  = ALPHA_CHAT_VERSION;
 		$parameters['platform_version'] = get_bloginfo( 'version' );
 		$parameters['server_version']   = PHP_VERSION;
-		$response = wp_remote_post(
+		$response                       = wp_remote_post(
 			add_query_arg( 'fluent-cart', sanitize_key( $action ), self::SERVER_URL ),
 			[
 				'timeout'     => 20,
@@ -308,7 +328,7 @@ final class LicenseManager {
 		if ( is_wp_error( $response ) ) {
 			return new WP_Error( 'alpha_chat_license_connection', __( 'Alpha Chat could not reach the license server.', 'alpha-chat' ) );
 		}
-		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+		$body   = json_decode( wp_remote_retrieve_body( $response ), true );
 		$status = wp_remote_retrieve_response_code( $response );
 		if ( $status < 200 || $status >= 300 || ! is_array( $body ) ) {
 			return new WP_Error( 'alpha_chat_license_response', __( 'The license server returned an invalid response.', 'alpha-chat' ) );

@@ -134,9 +134,9 @@ final class KnowledgeBaseController {
 			? self::public_post_types()
 			: [ $post_type ];
 
-		$indexed = (string) $request->get_param( 'indexed' );
+		$indexed      = (string) $request->get_param( 'indexed' );
 		$chunks_table = esc_sql( Schema::chunks_table() );
-		$ids = [ 0 ];
+		$ids          = [ 0 ];
 
 		if ( 'yes' === $indexed || 'no' === $indexed ) {
 			$ids = $wpdb->get_col(
@@ -175,7 +175,7 @@ final class KnowledgeBaseController {
 			if ( ! $post instanceof \WP_Post ) {
 				continue;
 			}
-			$chunks = (int) $wpdb->get_var(
+			$chunks  = (int) $wpdb->get_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM %i WHERE source_type = %s AND source_id = %d',
 					$chunks_table,
@@ -274,14 +274,19 @@ final class KnowledgeBaseController {
 		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$indexed_ids = array_map( 'intval', (array) $indexed_ids );
 
+		/** This filter is documented in src/Scheduler/ReindexScheduler.php */
+		$max = (int) apply_filters( 'alpha_chat_max_queued_posts', 5000, 'any' );
+
 		$query = new \WP_Query(
 			[
-				'post_type'      => self::public_post_types(),
-				'post_status'    => 'publish',
-				'post__not_in'   => empty( $indexed_ids ) ? [ 0 ] : $indexed_ids,
-				'fields'         => 'ids',
-				'posts_per_page' => -1,
-				'no_found_rows'  => true,
+				'post_type'              => self::public_post_types(),
+				'post_status'            => 'publish',
+				'post__not_in'           => empty( $indexed_ids ) ? [ 0 ] : $indexed_ids,
+				'fields'                 => 'ids',
+				'posts_per_page'         => max( 1, $max ),
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
 			]
 		);
 

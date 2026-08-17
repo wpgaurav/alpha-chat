@@ -34,6 +34,23 @@ final class HttpClient {
 		return $this->request( 'GET', $url, $headers, null );
 	}
 
+	/**
+	 * GET a URL that came from user input.
+	 *
+	 * Routes through wp_safe_remote_request, so WordPress re-validates the host
+	 * on every hop — including after a redirect — instead of trusting a check we
+	 * made before DNS was resolved.
+	 *
+	 * @param array<string, string> $headers
+	 *
+	 * @return array<string, mixed>
+	 *
+	 * @throws HttpException
+	 */
+	public function get_untrusted( string $url, array $headers = [] ): array {
+		return $this->request( 'GET', $url, $headers, null, true );
+	}
+
 	public function can_stream(): bool {
 		return function_exists( 'curl_init' );
 	}
@@ -138,7 +155,7 @@ final class HttpClient {
 	 *
 	 * @throws HttpException
 	 */
-	public function request( string $method, string $url, array $headers, array|string|null $body ): array {
+	public function request( string $method, string $url, array $headers, array|string|null $body, bool $safe = false ): array {
 		$defaults = [
 			'Accept'     => 'application/json',
 			'User-Agent' => 'AlphaChat/' . ALPHA_CHAT_VERSION . '; ' . home_url(),
@@ -167,7 +184,9 @@ final class HttpClient {
 			}
 		}
 
-		$response = wp_remote_request( $url, $args );
+		$response = $safe
+			? wp_safe_remote_request( $url, $args )
+			: wp_remote_request( $url, $args );
 
 		if ( $response instanceof WP_Error ) {
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not rendered as HTML.

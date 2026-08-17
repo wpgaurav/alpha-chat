@@ -55,8 +55,14 @@ final class SettingsRepositoryTest extends TestCase {
 
 	public function test_mask_secret_returns_bullets(): void {
 		$this->assertSame( '', SettingsRepository::mask_secret( '' ) );
-		$this->assertSame( str_repeat( '•', 8 ), SettingsRepository::mask_secret( 'a' ) );
-		$this->assertSame( str_repeat( '•', 24 ), SettingsRepository::mask_secret( str_repeat( 'a', 100 ) ) );
+		$this->assertSame( str_repeat( '•', 16 ), SettingsRepository::mask_secret( 'a' ) );
+	}
+
+	public function test_mask_secret_does_not_leak_key_length(): void {
+		$short = SettingsRepository::mask_secret( 'a' );
+		$long  = SettingsRepository::mask_secret( str_repeat( 'a', 100 ) );
+
+		$this->assertSame( $short, $long );
 	}
 
 	public function test_mask_secrets_for_display_masks_api_keys(): void {

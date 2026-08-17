@@ -16,8 +16,15 @@ final class PageContext {
 			return null;
 		}
 
+		// The URL and title arrive from the browser and land in the system prompt,
+		// so an off-site origin is a free channel for rewriting the assistant's
+		// instructions. Only pages on this site are described to the model.
+		if ( ! self::is_same_site( $url ) ) {
+			return null;
+		}
+
 		$post_id = self::resolve_post_id( $url );
-		$title   = trim( wp_strip_all_tags( $origin_title ) );
+		$title   = self::safe_title( $origin_title );
 		$content = '';
 
 		if ( $post_id > 0 ) {
@@ -62,6 +69,22 @@ final class PageContext {
 			'content' => (string) ( $filtered['content'] ?? $resolved['content'] ),
 			'post_id' => (int) ( $filtered['post_id'] ?? $resolved['post_id'] ),
 		];
+	}
+
+	/**
+	 * Flatten a browser-supplied document title into a single safe line.
+	 *
+	 * The title is only a fallback for pages that do not resolve to a post, and
+	 * it is still caller-controlled. Collapsing newlines stops it from forging
+	 * extra prompt sections, and the length cap bounds the blast radius.
+	 */
+	public static function safe_title( string $title ): string {
+		$title = wp_strip_all_tags( $title );
+		$title = preg_replace( '/[\r\n\t]+/u', ' ', $title ) ?? $title;
+		$title = preg_replace( '/\s{2,}/u', ' ', $title ) ?? $title;
+		$title = trim( $title );
+
+		return mb_strlen( $title ) > 160 ? mb_substr( $title, 0, 160 ) : $title;
 	}
 
 	public static function normalize_url( string $url ): string {
@@ -111,7 +134,7 @@ final class PageContext {
 			return 0;
 		}
 
-		$candidates = [ $url ];
+		$candidates    = [ $url ];
 		$without_query = preg_replace( '/\?.*$/', '', $url );
 		if ( is_string( $without_query ) && $without_query !== $url ) {
 			$candidates[] = $without_query;

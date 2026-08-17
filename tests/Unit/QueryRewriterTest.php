@@ -20,10 +20,20 @@ final class QueryRewriterTest extends TestCase {
 		parent::tearDown();
 	}
 
-	public function test_short_messages_are_follow_ups(): void {
+	public function test_continuations_are_follow_ups(): void {
 		$this->assertTrue( QueryRewriter::is_follow_up( 'what about that?' ) );
 		$this->assertTrue( QueryRewriter::is_follow_up( 'and this?' ) );
+		$this->assertTrue( QueryRewriter::is_follow_up( 'is it free?' ) );
+		$this->assertTrue( QueryRewriter::is_follow_up( 'cheaper?' ) );
 		$this->assertFalse( QueryRewriter::is_follow_up( '' ) );
+	}
+
+	public function test_standalone_questions_are_not_follow_ups(): void {
+		// These are short but self-contained. Treating them as follow-ups dragged
+		// the previous topic into the retrieval query and buried the new one.
+		$this->assertFalse( QueryRewriter::is_follow_up( 'How do refunds work?' ) );
+		$this->assertFalse( QueryRewriter::is_follow_up( 'What are your business hours?' ) );
+		$this->assertFalse( QueryRewriter::is_follow_up( 'Do you ship to Canada?' ) );
 	}
 
 	public function test_rewrite_joins_prior_turn(): void {

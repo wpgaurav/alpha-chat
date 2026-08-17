@@ -3,6 +3,7 @@
 /build/
 /.wp-env/
 /.phpunit.result.cache
+/.phpunit.cache/
 /.phpcs.cache
 /coverage/
 /languages/*.mo

@@ -5,6 +5,8 @@ namespace AlphaChat\REST;
 
 use AlphaChat\Chat\ChatService;
 use AlphaChat\Settings\SettingsRepository;
+use AlphaChat\Support\ClientIp;
+use AlphaChat\Support\RateLimiter;
 use Throwable;
 use WP_Error;
 use WP_REST_Request;
@@ -19,13 +21,13 @@ final class ChatController {
 
 	public function register( string $namespace ): void {
 		$args = [
-			'message'    => [
+			'message'      => [
 				'required'          => true,
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_textarea_field',
 				'validate_callback' => static fn ( $v ): bool => is_string( $v ) && '' !== trim( $v ),
 			],
-			'thread'     => [
+			'thread'       => [
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_text_field',
 			],
@@ -89,6 +91,11 @@ final class ChatController {
 
 		self::send_sse_headers();
 
+		// Proxies and PHP-FPM often close an idle connection well before a slow
+		// model emits its first token. A comment line is a no-op to the client
+		// but keeps the socket warm.
+		self::sse_comment( 'open' );
+
 		try {
 			[ $message, $thread, $session, $user, $origin, $origin_title ] = $this->chat_args( $request );
 			$result = $this->chat->send_streaming(
@@ -107,6 +114,9 @@ final class ChatController {
 			self::sse_event( 'error', [ 'message' => $e->getMessage() ] );
 		}
 
+		// PHP runs registered shutdown functions on exit, so WordPress's
+		// shutdown_action_hook still fires here and the object cache still closes.
+		// Do not call do_action( 'shutdown' ) by hand — it would run twice.
 		exit;
 	}
 
@@ -130,9 +140,25 @@ final class ChatController {
 			return new WP_Error( 'alpha_chat_disabled', __( 'Chat is disabled.', 'alpha-chat' ), [ 'status' => 403 ] );
 		}
 
+		$too_many = new WP_Error(
+			'alpha_chat_rate_limited',
+			__( 'Too many requests. Please slow down.', 'alpha-chat' ),
+			[ 'status' => 429 ]
+		);
+
 		$session_hash = self::session_hash( $request );
-		if ( self::is_rate_limited( 'chat_' . $session_hash, 30, 60 ) ) {
-			return new WP_Error( 'alpha_chat_rate_limited', __( 'Too many requests. Please slow down.', 'alpha-chat' ), [ 'status' => 429 ] );
+
+		[ $limit, $window ] = RateLimiter::limits( 'chat_session', 30, 60 );
+		if ( RateLimiter::hit( 'chat_' . $session_hash, $limit, $window ) ) {
+			return $too_many;
+		}
+
+		// A site-wide ceiling that no per-caller identifier can partition. This is
+		// the backstop that caps provider spend if the per-session bucket is ever
+		// split by a forged header or a fleet of distinct clients.
+		[ $global_limit, $global_window ] = RateLimiter::limits( 'chat_global', 240, 60 );
+		if ( RateLimiter::hit( 'chat_global', $global_limit, $global_window ) ) {
+			return $too_many;
 		}
 
 		return null;
@@ -181,6 +207,16 @@ final class ChatController {
 	}
 
 	/**
+	 * Emit an SSE comment line. Clients ignore it; proxies see traffic.
+	 */
+	public static function sse_comment( string $note ): void {
+		echo ': ' . $note . "\n\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SSE wire format.
+		if ( function_exists( 'flush' ) ) {
+			flush();
+		}
+	}
+
+	/**
 	 * @param array<string, mixed> $data
 	 */
 	public static function sse_event( string $event, array $data ): void {
@@ -197,25 +233,25 @@ final class ChatController {
 	}
 
 	private static function session_hash( WP_REST_Request $request ): string {
-		$remote_addr = isset( $_SERVER['REMOTE_ADDR'] )
-			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
-			: '';
-		$ip = (string) ( $request->get_header( 'X-Forwarded-For' ) ?: $remote_addr );
+		$ip = ClientIp::get();
 		$ua = (string) $request->get_header( 'User-Agent' );
+
+		// Logged-in visitors get a stable identity that does not shift with a
+		// changing IP, so their thread survives a network change.
+		$user_id = get_current_user_id();
+		if ( $user_id > 0 ) {
+			return hash( 'sha256', 'user:' . $user_id . '|' . wp_salt( 'auth' ) );
+		}
+
 		return hash( 'sha256', $ip . '|' . $ua . '|' . wp_salt( 'auth' ) );
 	}
 
 	/**
-	 * Simple fixed-window rate limiter backed by transients.
-	 * Returns true if the caller has exceeded $limit within $window_seconds.
+	 * Fixed-window rate limiter.
+	 *
+	 * @deprecated 0.3.0 Use AlphaChat\Support\RateLimiter::hit() instead.
 	 */
 	public static function is_rate_limited( string $key, int $limit, int $window_seconds ): bool {
-		$transient = 'alpha_chat_rl_' . md5( $key );
-		$count     = (int) get_transient( $transient );
-		if ( $count >= $limit ) {
-			return true;
-		}
-		set_transient( $transient, $count + 1, $window_seconds );
-		return false;
+		return RateLimiter::hit( $key, $limit, $window_seconds );
 	}
 }

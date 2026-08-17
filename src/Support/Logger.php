@@ -27,7 +27,28 @@ final class Logger {
 
 	/** @param array<string, mixed> $context */
 	private function log( string $level, string $message, array $context ): void {
-		if ( ! ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
+		// Errors and warnings always go to the log. Gating everything behind
+		// WP_DEBUG meant a production site failing every provider call left no
+		// trace at all, which makes support impossible.
+		$always = in_array( $level, [ 'error', 'warning' ], true );
+
+		/**
+		 * Filter whether an Alpha Chat log line is written.
+		 *
+		 * @param bool                 $enabled Whether to write the line.
+		 * @param string               $level   Log level.
+		 * @param string               $message Log message.
+		 * @param array<string, mixed> $context Structured context.
+		 */
+		$enabled = (bool) apply_filters(
+			'alpha_chat_should_log',
+			$always || ( defined( 'WP_DEBUG' ) && WP_DEBUG ),
+			$level,
+			$message,
+			$context
+		);
+
+		if ( ! $enabled ) {
 			return;
 		}
 

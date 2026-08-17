@@ -7,7 +7,7 @@ use AlphaChat\Database\Schema;
 
 final class Activator {
 
-	public static function activate(): void {
+	public static function activate( bool $network_wide = false ): void {
 		if ( version_compare( PHP_VERSION, ALPHA_CHAT_MIN_PHP, '<' ) ) {
 			deactivate_plugins( plugin_basename( ALPHA_CHAT_FILE ) );
 			wp_die(
@@ -17,6 +17,30 @@ final class Activator {
 			);
 		}
 
+		// Each site in a network has its own tables, so a network activation has
+		// to install on all of them or the subsites boot without a schema.
+		if ( $network_wide && is_multisite() ) {
+			$sites = get_sites(
+				[
+					'fields'        => 'ids',
+					'number'        => 0,
+					'no_found_rows' => true,
+				]
+			);
+
+			foreach ( (array) $sites as $site_id ) {
+				switch_to_blog( (int) $site_id );
+				self::install_site();
+				restore_current_blog();
+			}
+
+			return;
+		}
+
+		self::install_site();
+	}
+
+	private static function install_site(): void {
 		Schema::install();
 
 		add_option( 'alpha_chat_db_version', Schema::VERSION );

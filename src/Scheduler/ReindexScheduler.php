@@ -31,12 +31,26 @@ final class ReindexScheduler {
 	}
 
 	public function queue_all( string $post_type = 'post' ): int {
+		/**
+		 * Filter the ceiling on posts queued by a single reindex request.
+		 *
+		 * An unbounded query loaded every published id into memory at once, which
+		 * is a timeout on a large site. Run the action again to queue the rest.
+		 *
+		 * @param int    $max       Maximum posts per request.
+		 * @param string $post_type Post type being queued.
+		 */
+		$max = (int) apply_filters( 'alpha_chat_max_queued_posts', 5000, $post_type );
+
 		$ids = get_posts(
 			[
-				'post_type'      => $post_type,
-				'post_status'    => 'publish',
-				'posts_per_page' => -1,
-				'fields'         => 'ids',
+				'post_type'              => $post_type,
+				'post_status'            => 'publish',
+				'posts_per_page'         => max( 1, $max ),
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
 			]
 		);
 
@@ -68,8 +82,9 @@ final class ReindexScheduler {
 			'failed'      => 0,
 		];
 
-		$wpdb->suppress_errors( true );
-		$show_errors = $wpdb->hide_errors();
+		// Remember the prior state so we restore it instead of forcing it off.
+		$was_suppressing = $wpdb->suppress_errors( true );
+		$show_errors     = $wpdb->hide_errors();
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$has_table = $wpdb->get_var(
@@ -79,10 +94,7 @@ final class ReindexScheduler {
 			)
 		);
 		if ( ! $has_table ) {
-			if ( $show_errors ) {
-				$wpdb->show_errors();
-			}
-			$wpdb->suppress_errors( false );
+			self::restore_error_state( $show_errors, $was_suppressing );
 			return $empty;
 		}
 
@@ -94,10 +106,7 @@ final class ReindexScheduler {
 			)
 		);
 		if ( ! $group_id || '' !== (string) $wpdb->last_error ) {
-			if ( $show_errors ) {
-				$wpdb->show_errors();
-			}
-			$wpdb->suppress_errors( false );
+			self::restore_error_state( $show_errors, $was_suppressing );
 			return $empty;
 		}
 
@@ -109,10 +118,7 @@ final class ReindexScheduler {
 			),
 			ARRAY_A
 		);
-		if ( $show_errors ) {
-			$wpdb->show_errors();
-		}
-		$wpdb->suppress_errors( false );
+		self::restore_error_state( $show_errors, $was_suppressing );
 		if ( ! is_array( $rows ) ) {
 			return $empty;
 		}
@@ -126,6 +132,15 @@ final class ReindexScheduler {
 		}
 
 		return $out;
+	}
+
+	private static function restore_error_state( bool $show_errors, bool $was_suppressing ): void {
+		global $wpdb;
+
+		$wpdb->suppress_errors( $was_suppressing );
+		if ( $show_errors ) {
+			$wpdb->show_errors();
+		}
 	}
 
 	public function run_single( int $post_id ): void {

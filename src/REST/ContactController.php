@@ -5,6 +5,8 @@ namespace AlphaChat\REST;
 
 use AlphaChat\Chat\ContactRepository;
 use AlphaChat\Settings\SettingsRepository;
+use AlphaChat\Support\ClientIp;
+use AlphaChat\Support\RateLimiter;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -23,7 +25,9 @@ final class ContactController {
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create' ],
-				'permission_callback' => '__return_true',
+				// This endpoint sends mail, so it gets the same nonce requirement
+				// as the chat routes rather than being open to the whole internet.
+				'permission_callback' => [ ChatController::class, 'allow_public' ],
 				'args'                => [
 					'name'    => [
 						'required'          => true,
@@ -80,9 +84,28 @@ final class ContactController {
 	}
 
 	public function create( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		if ( ! (bool) $this->settings->get( 'contact_form_enabled', true ) ) {
+			return new WP_Error( 'alpha_chat_contact_disabled', __( 'The contact form is disabled.', 'alpha-chat' ), [ 'status' => 403 ] );
+		}
+
+		$too_many = new WP_Error(
+			'alpha_chat_rate_limited',
+			__( 'Too many submissions. Try again later.', 'alpha-chat' ),
+			[ 'status' => 429 ]
+		);
+
 		$ip_hash = self::ip_hash( $request );
-		if ( ChatController::is_rate_limited( 'contact_' . $ip_hash, 5, 3600 ) ) {
-			return new WP_Error( 'alpha_chat_rate_limited', __( 'Too many submissions. Try again later.', 'alpha-chat' ), [ 'status' => 429 ] );
+
+		[ $limit, $window ] = RateLimiter::limits( 'contact_ip', 5, HOUR_IN_SECONDS );
+		if ( RateLimiter::hit( 'contact_' . $ip_hash, $limit, $window ) ) {
+			return $too_many;
+		}
+
+		// Each submission sends mail, so cap the whole site as well — a per-caller
+		// bucket alone turns this into a mail relay for anyone with many clients.
+		[ $global_limit, $global_window ] = RateLimiter::limits( 'contact_global', 60, HOUR_IN_SECONDS );
+		if ( RateLimiter::hit( 'contact_global', $global_limit, $global_window ) ) {
+			return $too_many;
 		}
 
 		$user_id = get_current_user_id();
@@ -144,7 +167,8 @@ final class ContactController {
 
 		$headers = [
 			'Content-Type: text/plain; charset=UTF-8',
-			'Reply-To: ' . sprintf( '%s <%s>', $name, $email ),
+			// Angle brackets and commas would split or corrupt the address list.
+			'Reply-To: ' . sprintf( '%s <%s>', str_replace( [ '<', '>', ',', ';', '"' ], ' ', $name ), $email ),
 		];
 
 		wp_mail( $to, $subject, implode( "\n", $lines ), $headers );
@@ -163,10 +187,10 @@ final class ContactController {
 	}
 
 	private static function ip_hash( WP_REST_Request $request ): string {
-		$remote_addr = isset( $_SERVER['REMOTE_ADDR'] )
-			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
-			: '';
-		$ip = (string) ( $request->get_header( 'X-Forwarded-For' ) ?: $remote_addr );
+		unset( $request );
+
+		$ip = ClientIp::get();
+
 		return '' === $ip ? '' : hash( 'sha256', $ip . '|' . wp_salt( 'auth' ) );
 	}
 }

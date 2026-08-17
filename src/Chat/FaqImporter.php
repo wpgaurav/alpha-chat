@@ -119,7 +119,7 @@ final class FaqImporter {
 				continue;
 			}
 
-			$id = $this->faqs->create(
+			$id  = $this->faqs->create(
 				[
 					'question'   => $question,
 					'answer'     => $answer,
@@ -199,7 +199,7 @@ final class FaqImporter {
 			return null;
 		}
 
-		$raw  = (string) $post->post_content;
+		$raw = (string) $post->post_content;
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core content filter.
 		$html = (string) apply_filters( 'the_content', $raw );
 
@@ -239,7 +239,7 @@ final class FaqImporter {
 		foreach ( [ 'pages', 'posts' ] as $type ) {
 			$endpoint = $origin . '/wp-json/wp/v2/' . $type . '?slug=' . rawurlencode( $slug ) . '&per_page=1';
 			try {
-				$data = $this->http->get_json(
+				$data = $this->http->get_untrusted(
 					$endpoint,
 					[
 						'Accept' => 'application/json',
@@ -284,13 +284,11 @@ final class FaqImporter {
 	 * @return array{url: string, title: string, html: string, raw: string, source: string}
 	 */
 	private function fetch_html( string $url ): array {
-		$data = $this->http->request(
-			'GET',
+		$data = $this->http->get_untrusted(
 			$url,
 			[
 				'Accept' => 'text/html,application/xhtml+xml',
-			],
-			null
+			]
 		);
 		$html = (string) ( $data['raw'] ?? '' );
 		if ( '' === $html && isset( $data['html'] ) ) {
@@ -310,6 +308,15 @@ final class FaqImporter {
 		];
 	}
 
+	/**
+	 * Reject an import target before we fetch it.
+	 *
+	 * This is a fast fail with a readable message, not the real boundary — it
+	 * resolves DNS ahead of the request, so a rebinding host could answer
+	 * differently a moment later. The actual protection is that every outbound
+	 * fetch goes through wp_safe_remote_request, which re-validates the host on
+	 * each hop and after each redirect.
+	 */
 	private function assert_safe_url( string $url ): void {
 		$host = (string) wp_parse_url( $url, PHP_URL_HOST );
 		if ( '' === $host ) {
@@ -321,18 +328,59 @@ final class FaqImporter {
 			return;
 		}
 
-		$ips = gethostbynamel( $host );
-		if ( ! is_array( $ips ) || [] === $ips ) {
+		// A bare IP literal never needs resolving and must be checked directly.
+		if ( false !== filter_var( $host, FILTER_VALIDATE_IP ) ) {
+			if ( self::is_private_ip( $host ) ) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not rendered as HTML.
+				throw new HttpException( __( 'Import URLs cannot target private or local addresses.', 'alpha-chat' ), 400 );
+			}
+			return;
+		}
+
+		$records = self::resolve_all( $host );
+		if ( [] === $records ) {
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not rendered as HTML.
 			throw new HttpException( __( 'Could not resolve the import URL host.', 'alpha-chat' ), 400 );
 		}
 
-		foreach ( $ips as $ip ) {
+		foreach ( $records as $ip ) {
 			if ( self::is_private_ip( $ip ) ) {
 				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not rendered as HTML.
 				throw new HttpException( __( 'Import URLs cannot target private or local addresses.', 'alpha-chat' ), 400 );
 			}
 		}
+	}
+
+	/**
+	 * Resolve both A and AAAA records.
+	 *
+	 * Only IPv4 is returned by gethostbynamel(), so an AAAA-only host pointing at
+	 * ::1 used to skip the private-address check entirely.
+	 *
+	 * @return list<string>
+	 */
+	private static function resolve_all( string $host ): array {
+		$ips = [];
+
+		$v4 = gethostbynamel( $host );
+		if ( is_array( $v4 ) ) {
+			foreach ( $v4 as $ip ) {
+				$ips[] = (string) $ip;
+			}
+		}
+
+		if ( function_exists( 'dns_get_record' ) ) {
+			$records = @dns_get_record( $host, DNS_AAAA ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- lookup failures are handled by the empty check.
+			if ( is_array( $records ) ) {
+				foreach ( $records as $record ) {
+					if ( isset( $record['ipv6'] ) ) {
+						$ips[] = (string) $record['ipv6'];
+					}
+				}
+			}
+		}
+
+		return array_values( array_unique( $ips ) );
 	}
 
 	private static function is_private_ip( string $ip ): bool {

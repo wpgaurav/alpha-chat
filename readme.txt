@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude, grok, deepseek
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.2.1
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -103,6 +103,28 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.3.0 =
+Security and correctness release from a full audit.
+
+* Security: rate limiting no longer trusts `X-Forwarded-For` from arbitrary callers, which previously let any caller bypass the cap and drive unbounded AI provider spend. Cloudflare edge ranges are trusted automatically; other proxies use the `ALPHA_CHAT_TRUSTED_PROXIES` constant.
+* Security: added a site-wide ceiling on chat and contact requests that no client-supplied identifier can partition.
+* Security: the contact endpoint now requires a WordPress REST nonce. It was open to unauthenticated callers and sent mail on every request.
+* Security: resuming a conversation now requires ownership, so a leaked thread ID no longer exposes earlier messages.
+* Security: current-page prompt context is restricted to your own site, closing a prompt-injection path through the page title and URL.
+* Security: CSV export neutralises spreadsheet formula injection from visitor messages.
+* Fixed: one chat message could bill more than one AI completion when the widget retried across transports.
+* Fixed: Conversations CSV export produced a JSON string instead of a usable CSV file, and no longer loads the whole archive into memory.
+* Fixed: the "Add to Alpha Chat" row action on Posts and Pages did nothing when clicked.
+* Fixed: API keys can now be cleared from the settings screen.
+* Fixed: the widget recovers automatically from an expired nonce on cached pages.
+* Fixed: restoring a post from the trash returns it to the knowledge base.
+* Fixed: update checks cache failures instead of adding a blocking request to every admin page load.
+* Fixed: CJK token counting, multisite uninstall and network activation.
+* Changed: curated Q&A is ranked and capped before entering the prompt instead of sending every entry on every message.
+* Changed: errors are logged without requiring WP_DEBUG.
+
+Upgrade note: if your site is behind a proxy other than Cloudflare, define ALPHA_CHAT_TRUSTED_PROXIES in wp-config.php. Anything calling /alpha-chat/v1/contact directly must now send an X-WP-Nonce header.
 
 = 0.2.1 =
 * Fixed the widget treating HTML error pages as JSON ("Unexpected token <"). Chat now retries the rest_route URL and shows a plain retry message.

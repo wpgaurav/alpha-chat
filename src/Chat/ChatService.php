@@ -100,6 +100,12 @@ final class ChatService {
 		}
 
 		$thread = null === $thread_uuid ? null : $this->threads->find_by_uuid( $thread_uuid );
+		if ( null !== $thread && ! self::owns_thread( $thread, $session_hash, $user_id ) ) {
+			// A uuid alone must not unlock a conversation: history is replayed into
+			// the prompt, so resuming someone else's thread leaks it back out.
+			$this->logger->warning( 'Rejected thread resume for a mismatched session' );
+			$thread = null;
+		}
 		if ( null === $thread ) {
 			$thread = $this->threads->create( $session_hash, $user_id, $origin_url );
 		}
@@ -135,7 +141,7 @@ final class ChatService {
 			$threshold,
 			$this->providers->embeddings()->model(),
 			[
-				'text_query'        => $embed_text,
+				'text_query'       => $embed_text,
 				'prefer_source_id' => null !== $current_page ? $current_page['post_id'] : 0,
 			]
 		);
@@ -149,15 +155,15 @@ final class ChatService {
 		/** @var list<array{id: string, score: float, metadata: array<string, mixed>}> $filtered_chunks */
 		$filtered_chunks = apply_filters( 'alpha_chat_retrieved_chunks', $chunks, $message );
 		$chunks          = self::enrich_chunks( $filtered_chunks );
-		$faqs   = $this->faqs->all( true );
+		$faqs            = self::relevant_faqs( $this->faqs->all( true ), $message );
 
 		return [
 			'prompt'          => $this->build_messages( $message, $chunks, $faqs, $history, $current_page ),
 			'options'         => [
-				'temperature'       => (float) $this->settings->get( 'temperature', 0.7 ),
-				'top_p'             => (float) $this->settings->get( 'top_p', 1.0 ),
-				'max_tokens'        => (int) $this->settings->get( 'max_response_tokens', 800 ),
-				'reasoning_effort'  => (string) $this->settings->get( 'reasoning_effort', 'low' ),
+				'temperature'      => (float) $this->settings->get( 'temperature', 0.7 ),
+				'top_p'            => (float) $this->settings->get( 'top_p', 1.0 ),
+				'max_tokens'       => (int) $this->settings->get( 'max_response_tokens', 800 ),
+				'reasoning_effort' => (string) $this->settings->get( 'reasoning_effort', 'low' ),
 			],
 			'thread'          => $thread,
 			'message'         => $message,
@@ -263,10 +269,10 @@ final class ChatService {
 			$context .= "Do NOT include bracketed citation markers like [1] or [2] in your reply — the UI renders source links separately.\n";
 			$context .= "Do not invent titles or URLs that are not in the numbered context.\n\n";
 			foreach ( $chunks as $i => $chunk ) {
-				$meta  = (array) ( $chunk['metadata'] ?? [] );
-				$title = (string) ( $meta['title'] ?? '' );
-				$url   = (string) ( $meta['url'] ?? '' );
-				$body  = trim( (string) ( $meta['content'] ?? '' ) );
+				$meta   = (array) ( $chunk['metadata'] ?? [] );
+				$title  = (string) ( $meta['title'] ?? '' );
+				$url    = (string) ( $meta['url'] ?? '' );
+				$body   = trim( (string) ( $meta['content'] ?? '' ) );
 				$header = sprintf( '[%d]', $i + 1 );
 				if ( '' !== $title ) {
 					$header .= ' ' . $title;
@@ -294,6 +300,111 @@ final class ChatService {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Narrow the curated Q&A to what could plausibly answer this message.
+	 *
+	 * Every enabled FAQ used to be pasted into the system prompt on every
+	 * message, so a site with a large FAQ set paid for the whole list on each
+	 * turn. Anything under the cap is still sent verbatim; past that, entries are
+	 * ranked by word overlap with the question and the tail is dropped.
+	 *
+	 * @param list<array{id:int, question:string, answer:string, sort_order:int, enabled:bool, created_at:string, updated_at:string}> $faqs
+	 *
+	 * @return list<array{id:int, question:string, answer:string, sort_order:int, enabled:bool, created_at:string, updated_at:string}>
+	 */
+	private static function relevant_faqs( array $faqs, string $message ): array {
+		/**
+		 * Filter how many curated Q&A entries are injected into the prompt.
+		 *
+		 * @param int    $max     Maximum entries. 0 sends every enabled entry.
+		 * @param string $message The visitor's message.
+		 */
+		$max = (int) apply_filters( 'alpha_chat_max_prompt_faqs', 12, $message );
+
+		if ( $max <= 0 || count( $faqs ) <= $max ) {
+			return $faqs;
+		}
+
+		$terms = self::terms( $message );
+		if ( empty( $terms ) ) {
+			return array_slice( $faqs, 0, $max );
+		}
+
+		$ranked = [];
+		foreach ( $faqs as $position => $faq ) {
+			$haystack = self::terms( $faq['question'] . ' ' . $faq['answer'] );
+			$score    = 0;
+			// terms() returns a word => true set, so the words are the keys.
+			foreach ( array_keys( $terms ) as $term ) {
+				if ( isset( $haystack[ $term ] ) ) {
+					++$score;
+				}
+			}
+			$ranked[] = [
+				'score'    => $score,
+				'position' => $position,
+				'faq'      => $faq,
+			];
+		}
+
+		usort(
+			$ranked,
+			static function ( array $a, array $b ): int {
+				if ( $a['score'] !== $b['score'] ) {
+					return $b['score'] <=> $a['score'];
+				}
+				// Ties keep the admin's configured sort order.
+				return $a['position'] <=> $b['position'];
+			}
+		);
+
+		$out = [];
+		foreach ( array_slice( $ranked, 0, $max ) as $entry ) {
+			$out[] = $entry['faq'];
+		}
+
+		return $out;
+	}
+
+	/**
+	 * @return array<string, true>
+	 */
+	private static function terms( string $text ): array {
+		$text  = mb_strtolower( wp_strip_all_tags( $text ) );
+		$text  = preg_replace( '/[^\p{L}\p{N}\s]+/u', ' ', $text ) ?? $text;
+		$words = preg_split( '/\s+/u', trim( $text ) ) ?: [];
+
+		$out = [];
+		foreach ( $words as $word ) {
+			if ( mb_strlen( $word ) >= 3 ) {
+				$out[ $word ] = true;
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Whether the caller may resume an existing thread.
+	 *
+	 * A signed-in user owns their own threads. Anonymous visitors are matched on
+	 * the session hash, which binds the thread to the browser that started it.
+	 *
+	 * @param array<string, mixed> $thread
+	 */
+	private static function owns_thread( array $thread, string $session_hash, ?int $user_id ): bool {
+		$thread_user = null === $thread['user_id'] ? 0 : (int) $thread['user_id'];
+		$caller      = (int) ( $user_id ?? 0 );
+
+		if ( $thread_user > 0 || $caller > 0 ) {
+			return $thread_user === $caller;
+		}
+
+		$stored = (string) ( $thread['session_hash'] ?? '' );
+
+		return '' !== $stored && hash_equals( $stored, $session_hash );
 	}
 
 	/**
@@ -363,7 +474,7 @@ final class ChatService {
 				continue;
 			}
 			$seen[ $key ] = true;
-			$out[] = [
+			$out[]        = [
 				'source_type' => $type,
 				'source_id'   => $sid,
 				'score'       => (float) ( $chunk['score'] ?? 0 ),

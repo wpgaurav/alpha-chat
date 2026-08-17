@@ -75,15 +75,38 @@ final class SettingsController {
 	public function read( WP_REST_Request $request ): WP_REST_Response {
 		unset( $request );
 
-		$settings = $this->settings->mask_secrets_for_display( $this->settings->all() );
+		$raw      = $this->settings->all();
+		$settings = $this->settings->mask_secrets_for_display( $raw );
 
 		return new WP_REST_Response(
 			[
 				'settings' => $settings,
 				'stats'    => $this->indexer->stats(),
 				'catalog'  => ModelCatalog::all(),
+				'runtime'  => self::runtime( $raw ),
 			]
 		);
+	}
+
+	/**
+	 * Facts about the live configuration that the settings values alone hide.
+	 *
+	 * `moderation_enabled` can be on while no moderation actually runs, because
+	 * the only provider is OpenAI's endpoint — an Anthropic-only site would show
+	 * a checked box and screen nothing.
+	 *
+	 * @param array<string, mixed> $settings Unmasked settings.
+	 *
+	 * @return array{moderation_active: bool, moderation_requires_key: bool}
+	 */
+	private static function runtime( array $settings ): array {
+		$has_openai_key = '' !== trim( (string) ( $settings['openai_api_key'] ?? '' ) );
+		$wants          = (bool) ( $settings['moderation_enabled'] ?? true );
+
+		return [
+			'moderation_active'       => $wants && $has_openai_key,
+			'moderation_requires_key' => $wants && ! $has_openai_key,
+		];
 	}
 
 	public function write( WP_REST_Request $request ): WP_REST_Response|WP_Error {
@@ -103,6 +126,7 @@ final class SettingsController {
 				'settings' => $this->settings->mask_secrets_for_display( $saved ),
 				'stats'    => $this->indexer->stats(),
 				'catalog'  => ModelCatalog::all(),
+				'runtime'  => self::runtime( $saved ),
 			]
 		);
 	}
