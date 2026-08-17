@@ -13,6 +13,7 @@ use AlphaChat\Chat\FaqImporter;
 use AlphaChat\Chat\FaqRepository;
 use AlphaChat\Chat\MessageRepository;
 use AlphaChat\Chat\ThreadRepository;
+use AlphaChat\Chat\ThreadTitler;
 use AlphaChat\Frontend\WidgetLoader;
 use AlphaChat\Http\HttpClient;
 use AlphaChat\KnowledgeBase\Indexer;
@@ -23,6 +24,7 @@ use AlphaChat\REST\ChatController;
 use AlphaChat\REST\ContactController;
 use AlphaChat\REST\FaqController;
 use AlphaChat\REST\KnowledgeBaseController;
+use AlphaChat\REST\LogsController;
 use AlphaChat\REST\RouteRegistrar;
 use AlphaChat\REST\SettingsController;
 use AlphaChat\REST\ThreadsController;
@@ -30,6 +32,7 @@ use AlphaChat\Scheduler\ReindexScheduler;
 use AlphaChat\Settings\SettingsRepository;
 use AlphaChat\Support\Container;
 use AlphaChat\Support\Logger;
+use AlphaChat\Support\LogRepository;
 use AlphaChat\Text\TokenCounter;
 
 final class Plugin {
@@ -66,6 +69,14 @@ final class Plugin {
 		$this->container->get( BlockRegistrar::class )->register( $this->container->get( WidgetLoader::class ) );
 		$this->container->get( WidgetLoader::class )->register();
 		$this->container->get( LicenseManager::class )->register();
+		$this->container->get( ThreadTitler::class )->register();
+
+		// Keep the log table bounded. Hooked to the daily WordPress event rather
+		// than pruning on every write, which would add a DELETE to each failure.
+		add_action( 'alpha_chat_prune_logs', [ $this->container->get( LogRepository::class ), 'prune' ] );
+		if ( ! wp_next_scheduled( 'alpha_chat_prune_logs' ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'alpha_chat_prune_logs' );
+		}
 
 		if ( is_admin() ) {
 			$this->container->get( AdminMenu::class )->register();
@@ -81,7 +92,11 @@ final class Plugin {
 	}
 
 	private function register_services( Container $c ): void {
-		$c->set( Logger::class, static fn () => new Logger() );
+		$c->set( LogRepository::class, static fn () => new LogRepository() );
+		$c->set(
+			Logger::class,
+			static fn ( Container $c ) => new Logger( $c->get( LogRepository::class ) ),
+		);
 		$c->set( TokenCounter::class, static fn () => new TokenCounter() );
 		$c->set(
 			HttpClient::class,
@@ -125,6 +140,17 @@ final class Plugin {
 		);
 
 		$c->set(
+			ThreadTitler::class,
+			static fn ( Container $c ) => new ThreadTitler(
+				$c->get( ProviderFactory::class ),
+				$c->get( SettingsRepository::class ),
+				$c->get( ThreadRepository::class ),
+				$c->get( MessageRepository::class ),
+				$c->get( Logger::class ),
+			),
+		);
+
+		$c->set(
 			ChatService::class,
 			static fn ( Container $c ) => new ChatService(
 				$c->get( ProviderFactory::class ),
@@ -134,6 +160,7 @@ final class Plugin {
 				$c->get( TokenCounter::class ),
 				$c->get( Logger::class ),
 				$c->get( FaqRepository::class ),
+				$c->get( ThreadTitler::class ),
 			),
 		);
 
@@ -218,6 +245,13 @@ final class Plugin {
 			static fn ( Container $c ) => new FaqController(
 				$c->get( FaqRepository::class ),
 				$c->get( FaqImporter::class ),
+			),
+		);
+
+		$c->set(
+			LogsController::class,
+			static fn ( Container $c ) => new LogsController(
+				$c->get( LogRepository::class ),
 			),
 		);
 

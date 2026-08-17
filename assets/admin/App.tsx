@@ -9,6 +9,7 @@ import { ThreadsView } from './views/ThreadsView';
 import { DashboardView } from './views/DashboardView';
 import { ContactsView } from './views/ContactsView';
 import { FaqsView } from './views/FaqsView';
+import { LogsView } from './views/LogsView';
 
 const tabs = [
 	{
@@ -41,6 +42,11 @@ const tabs = [
 		title: __( 'Settings', 'alpha-chat' ),
 		className: 'alpha-chat-tab',
 	},
+	{
+		name: 'logs',
+		title: __( 'Logs', 'alpha-chat' ),
+		className: 'alpha-chat-tab',
+	},
 ];
 
 export function App() {
@@ -70,6 +76,7 @@ export function App() {
 							{ tab.name === 'threads' && <ThreadsView /> }
 							{ tab.name === 'contacts' && <ContactsView /> }
 							{ tab.name === 'settings' && <SettingsView /> }
+							{ tab.name === 'logs' && <LogsView /> }
 						</section>
 					) }
 				</TabPanel>

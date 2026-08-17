@@ -89,6 +89,7 @@ final class WidgetLoader {
 				'colors'                => (array) $settings['colors'],
 				'launcherNudge'         => (string) ( $settings['launcher_nudge'] ?? '' ),
 				'launcherPosition'      => $position,
+				'launcherDevices'       => self::devices( $settings['launcher_devices'] ?? [] ),
 				'brandName'             => (string) ( $settings['brand_name'] ?? get_bloginfo( 'name' ) ),
 				'contactFormEnabled'    => (bool) ( $settings['contact_form_enabled'] ?? true ),
 				'contactCtaLabel'       => (string) ( $settings['contact_cta_label'] ?? '' ),
@@ -108,6 +109,23 @@ final class WidgetLoader {
 		);
 
 		$this->localized = true;
+	}
+
+	/**
+	 * Normalise the per-device launcher settings for the client.
+	 *
+	 * @param mixed $value Stored setting.
+	 *
+	 * @return array{desktop: bool, tablet: bool, mobile: bool}
+	 */
+	private static function devices( mixed $value ): array {
+		$stored = is_array( $value ) ? $value : [];
+
+		return [
+			'desktop' => ! array_key_exists( 'desktop', $stored ) || (bool) $stored['desktop'],
+			'tablet'  => ! array_key_exists( 'tablet', $stored ) || (bool) $stored['tablet'],
+			'mobile'  => ! array_key_exists( 'mobile', $stored ) || (bool) $stored['mobile'],
+		];
 	}
 
 	public function render_mount(): void {

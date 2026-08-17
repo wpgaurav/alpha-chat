@@ -43,6 +43,36 @@ type ChatResponse = {
 
 type Position = 'left' | 'center' | 'right';
 
+type LauncherDevices = {
+	desktop: boolean;
+	tablet: boolean;
+	mobile: boolean;
+};
+
+/**
+ * Map the per-device settings onto the CSS classes that hide the launcher.
+ *
+ * The hiding itself is a media query, so it is evaluated in the visitor's
+ * browser and stays correct even when the page came from a full-page cache.
+ * @param devices
+ */
+function hiddenDeviceClasses( devices?: LauncherDevices ): string[] {
+	if ( ! devices ) {
+		return [];
+	}
+	const classes: string[] = [];
+	if ( devices.desktop === false ) {
+		classes.push( 'hide-desktop' );
+	}
+	if ( devices.tablet === false ) {
+		classes.push( 'hide-tablet' );
+	}
+	if ( devices.mobile === false ) {
+		classes.push( 'hide-mobile' );
+	}
+	return classes;
+}
+
 type ClientData = {
 	restUrl: string;
 	restRoute?: string;
@@ -53,6 +83,7 @@ type ClientData = {
 	colors: Record< string, string >;
 	launcherNudge: string;
 	launcherPosition: Position;
+	launcherDevices?: LauncherDevices;
 	brandName: string;
 	contactFormEnabled: boolean;
 	contactCtaLabel: string;
@@ -995,7 +1026,13 @@ function FloatingWidget( { client }: { client: ClientData } ) {
 				</div>
 			) }
 			{ ! open && (
-				<div className={ `launcher pos-${ position }` }>
+				<div
+					className={ [
+						'launcher',
+						`pos-${ position }`,
+						...hiddenDeviceClasses( client.launcherDevices ),
+					].join( ' ' ) }
+				>
 					{ client.launcherNudge && (
 						<button
 							type="button"

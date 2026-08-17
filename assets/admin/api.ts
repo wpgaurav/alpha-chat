@@ -89,6 +89,27 @@ export type ModelCatalog = {
 	reasoning: CatalogModel[];
 };
 
+export type LauncherDevices = {
+	desktop: boolean;
+	tablet: boolean;
+	mobile: boolean;
+};
+
+export type LogEntry = {
+	id: number;
+	level: 'error' | 'warning';
+	message: string;
+	context: Record< string, unknown > | null;
+	source: string;
+	created_at: string;
+};
+
+export type LogList = {
+	items: LogEntry[];
+	total: number;
+	counts: { error: number; warning: number; total: number };
+};
+
 export type Settings = {
 	llm_provider: ProviderId | string;
 	chat_enabled: boolean;
@@ -117,6 +138,8 @@ export type Settings = {
 	colors: Record< string, string >;
 	launcher_nudge: string;
 	launcher_position: 'left' | 'center' | 'right';
+	launcher_devices: LauncherDevices;
+	ai_thread_titles: boolean;
 	brand_name: string;
 	contact_form_enabled: boolean;
 	contact_cta_label: string;
@@ -263,6 +286,13 @@ export const adminApi = {
 		api< { items: { slug: string; label: string }[] } >(
 			'/knowledge-base/post-types'
 		),
+	listLogs: ( params: {
+		page?: number;
+		per_page?: number;
+		level?: string;
+	} ) => api< LogList >( '/logs', { query: params } ),
+	clearLogs: () =>
+		api< { deleted: number } >( '/logs', { method: 'DELETE' } ),
 	bulkKnowledgeBase: ( action: 'add' | 'remove', postIds: number[] ) =>
 		api< { queued: number; removed: number } >( '/knowledge-base/bulk', {
 			method: 'POST',

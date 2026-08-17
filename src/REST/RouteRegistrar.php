@@ -69,6 +69,10 @@ final class RouteRegistrar {
 		$faqs = $this->container->get( FaqController::class );
 		$faqs->register( self::NAMESPACE );
 
+		/** @var LogsController $logs */
+		$logs = $this->container->get( LogsController::class );
+		$logs->register( self::NAMESPACE );
+
 		/**
 		 * Fires after built-in Alpha Chat REST routes are registered.
 		 *

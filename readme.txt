@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude, grok, deepseek
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.3.2
+Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -103,6 +103,15 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.4.0 =
+* New: **Error log.** Errors and warnings now appear under Alpha Chat → Logs, with a level filter, expandable context, and a clear button. Provider failures were previously invisible unless you read the PHP error log. API keys are stripped before anything is stored, and entries are pruned daily.
+* New: **AI conversation titles.** Conversations are named from their first exchange by your chat provider instead of a truncated first message. Runs in the background on a tiny token budget, so it never slows a reply. Toggle under Behavior.
+* New: **Per-device chat button.** Show or hide the floating button independently on desktop, tablet, and mobile — so you can hide it on phones and keep it on desktop. Applied by screen width in the browser, so it stays correct behind a page cache. Blocks and shortcodes are unaffected.
+* Fixed: conversations showed 0 messages and a raw ID whenever a reply failed. Counts and titles are now written when the message is stored.
+* Fixed: fallback titles showed a literal `&hellip;` instead of an ellipsis.
+* Fixed: provider and configuration errors return HTTP 503 instead of 502, so a CDN no longer replaces the real error message with its own page.
+* Added: `alpha_chat_pre_llm_provider` and `alpha_chat_pre_embedding_provider` filters for replacing a provider without configuring a built-in provider's API key.
 
 = 0.3.2 =
 * Fixed: assistant replies showed raw Markdown. Models answer in Markdown, so visitors saw literal `**bold**` and `-` bullets. Replies now render bold, italic, inline code, code blocks, links, headings, and bullet and numbered lists.

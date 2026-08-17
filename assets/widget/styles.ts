@@ -47,6 +47,25 @@ svg {
 
 .launcher > * { pointer-events: auto; }
 
+/* Per-device visibility.
+
+   Done with media queries rather than server-side user-agent detection on
+   purpose: the launcher markup is baked into cached HTML, so a PHP-side
+   wp_is_mobile() check would be frozen at whatever device first warmed the
+   cache and would show the wrong thing to everyone after that. Width buckets
+   are evaluated per visitor, so they stay correct behind any page cache.
+
+   Buckets: mobile < 768, tablet 768-1023, desktop >= 1024. */
+@media (max-width: 767px) {
+	.launcher.hide-mobile { display: none; }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+	.launcher.hide-tablet { display: none; }
+}
+@media (min-width: 1024px) {
+	.launcher.hide-desktop { display: none; }
+}
+
 .nudge {
 	display: flex;
 	align-items: center;

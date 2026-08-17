@@ -3,7 +3,13 @@ declare(strict_types=1);
 
 namespace AlphaChat\Support;
 
+use Throwable;
+
 final class Logger {
+
+	public function __construct(
+		private readonly ?LogRepository $store = null,
+	) {}
 
 	/** @param array<string, mixed> $context */
 	public function debug( string $message, array $context = [] ): void {
@@ -63,5 +69,36 @@ final class Logger {
 		}
 
 		error_log( $line ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+		// Persist so the failure is visible in the admin. Logging must never be
+		// able to break the request it is describing — a missing table during an
+		// upgrade would otherwise turn a warning into a fatal.
+		if ( null === $this->store ) {
+			return;
+		}
+
+		try {
+			$this->store->write( $level, $message, $context, self::caller() );
+		} catch ( Throwable $e ) {
+			// Already emitted to error_log above. Swallowing here is deliberate:
+			// a logging failure must not escalate into a request failure.
+			unset( $e );
+		}
+	}
+
+	/**
+	 * Identify the plugin class that logged this, for the admin view.
+	 */
+	private static function caller(): string {
+		$frames = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 6 ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace
+
+		foreach ( $frames as $frame ) {
+			$class = (string) ( $frame['class'] ?? '' );
+			if ( '' !== $class && ! str_ends_with( $class, 'Logger' ) && str_starts_with( $class, 'AlphaChat\\' ) ) {
+				return $class . '::' . $frame['function'];
+			}
+		}
+
+		return '';
 	}
 }

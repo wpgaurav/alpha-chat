@@ -5,7 +5,7 @@ namespace AlphaChat\Database;
 
 final class Schema {
 
-	public const VERSION = '1.5.0';
+	public const VERSION = '1.6.0';
 
 	public static function install(): void {
 		global $wpdb;
@@ -19,6 +19,7 @@ final class Schema {
 		$messages = self::messages_table();
 		$contacts = self::contacts_table();
 		$faqs     = self::faqs_table();
+		$logs     = self::logs_table();
 
 		$sql = [
 			"CREATE TABLE $chunks (
@@ -47,6 +48,7 @@ final class Schema {
 				user_id BIGINT UNSIGNED NULL,
 				session_hash CHAR(64) NOT NULL DEFAULT '',
 				title VARCHAR(255) NOT NULL DEFAULT '',
+				title_generated TINYINT(1) NOT NULL DEFAULT 0,
 				origin_url VARCHAR(500) NOT NULL DEFAULT '',
 				message_count INT UNSIGNED NOT NULL DEFAULT 0,
 				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -99,6 +101,18 @@ final class Schema {
 				KEY status (status),
 				KEY created_at (created_at)
 			) $charset_collate;",
+
+			"CREATE TABLE $logs (
+				id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+				level VARCHAR(16) NOT NULL DEFAULT 'error',
+				message TEXT NOT NULL,
+				context LONGTEXT NULL,
+				source VARCHAR(191) NOT NULL DEFAULT '',
+				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY  (id),
+				KEY level (level),
+				KEY created_at (created_at)
+			) $charset_collate;",
 		];
 
 		foreach ( $sql as $statement ) {
@@ -131,6 +145,11 @@ final class Schema {
 	public static function faqs_table(): string {
 		global $wpdb;
 		return $wpdb->prefix . 'alpha_chat_faqs';
+	}
+
+	public static function logs_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'alpha_chat_logs';
 	}
 
 	public static function maybe_upgrade(): void {

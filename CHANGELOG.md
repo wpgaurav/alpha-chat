@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-17
+
+### Added
+- **Error log.** Errors and warnings are recorded to a new table and shown under
+  Alpha Chat → Logs, with level filter, expandable context, source attribution, and
+  a clear button. Provider failures used to be invisible unless the site owner read
+  the PHP error log. Anything resembling a credential is stripped before an entry is
+  stored, and entries are pruned daily to 30 days and 2000 rows.
+- **AI conversation titles.** Conversations are named from their opening exchange by
+  the configured chat provider, replacing a truncation of the first message. Runs as
+  a scheduled action with a 24-token budget, so it never delays or endangers a reply,
+  and each conversation is named once. Toggle under Behavior.
+- **Per-device launcher visibility.** The floating button can be shown or hidden
+  independently on desktop, tablet, and mobile. Applied by screen width in the
+  browser, not by server-side user-agent detection, so it stays correct behind a
+  full-page cache. Blocks and shortcodes are unaffected.
+- `alpha_chat_pre_llm_provider` and `alpha_chat_pre_embedding_provider` filters, which
+  replace a provider before the built-in one is constructed. The existing
+  `alpha_chat_llm_provider` filter can only decorate an instance that already exists,
+  so swapping in your own provider previously still required configuring an API key
+  for a built-in provider you were not using.
+- `alpha_chat_log_retention_days`, `alpha_chat_log_max_rows` and
+  `alpha_chat_thread_titled` hooks.
+
+### Fixed
+- A conversation showed `0` messages and a bare uuid in the admin whenever a reply
+  failed. The message count and title were only written after a successful
+  completion, even though the visitor's message had already been stored. Both are now
+  written when the message is stored, and the count is derived from the stored rows.
+- Fallback titles contained a literal `&hellip;` entity instead of an ellipsis.
+- Provider and configuration failures return HTTP 503 rather than 502. A CDN in front
+  of the site replaces a 502 body with its own error page, so the actual reason never
+  reached the widget or the site owner.
+
+### Database
+- Schema 1.6.0 adds the `alpha_chat_logs` table and a `title_generated` column on
+  `alpha_chat_threads`. Applied automatically on upgrade.
+
 ## [0.3.2] - 2026-08-17
 
 ### Fixed

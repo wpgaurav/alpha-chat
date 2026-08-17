@@ -110,7 +110,7 @@ final class SettingsRepository {
 			$output[ $key ] = sanitize_text_field( $value );
 		}
 
-		$bool_keys = [ 'chat_enabled', 'moderation_enabled', 'show_launcher', 'contact_form_enabled' ];
+		$bool_keys = [ 'chat_enabled', 'moderation_enabled', 'show_launcher', 'contact_form_enabled', 'ai_thread_titles' ];
 		foreach ( $bool_keys as $key ) {
 			if ( array_key_exists( $key, $input ) ) {
 				$output[ $key ] = (bool) $input[ $key ];
@@ -147,6 +147,17 @@ final class SettingsRepository {
 					static fn ( string $q ): bool => '' !== $q
 				)
 			);
+		}
+
+		if ( isset( $input['launcher_devices'] ) && is_array( $input['launcher_devices'] ) ) {
+			$devices = [];
+			foreach ( [ 'desktop', 'tablet', 'mobile' ] as $device ) {
+				// Absent means unchanged-from-default (visible), not "off".
+				$devices[ $device ] = array_key_exists( $device, $input['launcher_devices'] )
+					? (bool) $input['launcher_devices'][ $device ]
+					: true;
+			}
+			$output['launcher_devices'] = $devices;
 		}
 
 		if ( isset( $input['colors'] ) && is_array( $input['colors'] ) ) {
@@ -211,6 +222,12 @@ final class SettingsRepository {
 				'show_launcher'              => false,
 				'launcher_nudge'             => __( 'Ask anything…', 'alpha-chat' ),
 				'launcher_position'          => 'right',
+				'launcher_devices'           => [
+					'desktop' => true,
+					'tablet'  => true,
+					'mobile'  => true,
+				],
+				'ai_thread_titles'           => true,
 				'brand_name'                 => get_bloginfo( 'name' ),
 				'contact_form_enabled'       => true,
 				'contact_cta_label'          => __( 'Still need help? Email us', 'alpha-chat' ),

@@ -73,7 +73,10 @@ final class ChatController {
 		try {
 			$result = $this->chat->send( ...$this->chat_args( $request ) );
 		} catch ( Throwable $e ) {
-			return new WP_Error( 'alpha_chat_failed', $e->getMessage(), [ 'status' => 502 ] );
+			// 503, not 502: a CDN in front of the site replaces a 502 body with
+			// its own error page, so the actual reason ("API key is not
+			// configured") never reaches the widget or the site owner.
+			return new WP_Error( 'alpha_chat_failed', $e->getMessage(), [ 'status' => 503 ] );
 		}
 
 		return new WP_REST_Response( $result );

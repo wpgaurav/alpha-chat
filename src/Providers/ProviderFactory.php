@@ -30,6 +30,23 @@ final class ProviderFactory {
 	public function llm(): LLMProvider {
 		$provider = (string) $this->settings->get( 'llm_provider', 'openai' );
 
+		/**
+		 * Short-circuit provider resolution with your own implementation.
+		 *
+		 * Runs before the built-in provider is constructed. The
+		 * alpha_chat_llm_provider filter below can only decorate an instance
+		 * that already exists, which means the built-in provider's API key has
+		 * to be configured first — so it cannot be used to replace a provider
+		 * outright. Return an LLMProvider here to take over completely.
+		 *
+		 * @param LLMProvider|null $override Null to use the built-in provider.
+		 * @param string           $provider Configured provider id.
+		 */
+		$override = apply_filters( 'alpha_chat_pre_llm_provider', null, $provider );
+		if ( $override instanceof LLMProvider ) {
+			return $override;
+		}
+
 		$llm = match ( $provider ) {
 			'anthropic' => new AnthropicChat(
 				$this->http,
@@ -63,6 +80,19 @@ final class ProviderFactory {
 
 	public function embeddings(): EmbeddingProvider {
 		$provider = (string) $this->settings->get( 'embedding_provider', 'openai' );
+
+		/**
+		 * Short-circuit embedding provider resolution.
+		 *
+		 * This filter is documented in src/Providers/ProviderFactory.php
+		 *
+		 * @param EmbeddingProvider|null $override Null to use the built-in provider.
+		 * @param string                 $provider Configured provider id.
+		 */
+		$override = apply_filters( 'alpha_chat_pre_embedding_provider', null, $provider );
+		if ( $override instanceof EmbeddingProvider ) {
+			return $override;
+		}
 
 		$embeddings = match ( $provider ) {
 			'voyage' => new VoyageEmbeddings(

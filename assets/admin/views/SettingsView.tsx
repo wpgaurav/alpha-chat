@@ -482,6 +482,21 @@ export function SettingsView() {
 					/>
 					<ToggleControl
 						__nextHasNoMarginBottom
+						label={ __(
+							'Name conversations with AI',
+							'alpha-chat'
+						) }
+						checked={ settings.ai_thread_titles ?? true }
+						onChange={ ( value ) =>
+							update( 'ai_thread_titles', value )
+						}
+						help={ __(
+							'Titles each conversation from its first exchange using your chat provider. Runs in the background, so it never slows a reply.',
+							'alpha-chat'
+						) }
+					/>
+					<ToggleControl
+						__nextHasNoMarginBottom
 						label={ __( 'Enable moderation', 'alpha-chat' ) }
 						checked={ settings.moderation_enabled }
 						onChange={ ( value ) =>
@@ -566,6 +581,60 @@ export function SettingsView() {
 						'alpha-chat'
 					) }
 				/>
+				<div className="alpha-chat-devices">
+					<p className="alpha-chat-devices__label">
+						{ __( 'Show the button on', 'alpha-chat' ) }
+					</p>
+					{ (
+						[
+							[
+								'desktop',
+								__( 'Desktop', 'alpha-chat' ),
+								__( '1024px and wider', 'alpha-chat' ),
+							],
+							[
+								'tablet',
+								__( 'Tablet', 'alpha-chat' ),
+								__( '768px to 1023px', 'alpha-chat' ),
+							],
+							[
+								'mobile',
+								__( 'Mobile', 'alpha-chat' ),
+								__( 'Under 768px', 'alpha-chat' ),
+							],
+						] as const
+					 ).map( ( [ key, label, hint ] ) => (
+						<ToggleControl
+							key={ key }
+							__nextHasNoMarginBottom
+							label={ label }
+							help={ hint }
+							checked={
+								settings.launcher_devices?.[ key ] ?? true
+							}
+							onChange={ ( value ) =>
+								update( 'launcher_devices', {
+									desktop:
+										settings.launcher_devices?.desktop ??
+										true,
+									tablet:
+										settings.launcher_devices?.tablet ??
+										true,
+									mobile:
+										settings.launcher_devices?.mobile ??
+										true,
+									[ key ]: value,
+								} )
+							}
+						/>
+					) ) }
+					<p className="alpha-chat-devices__note">
+						{ __(
+							'Applied in the browser by screen width, so it stays correct behind a page cache. Blocks and shortcodes are unaffected.',
+							'alpha-chat'
+						) }
+					</p>
+				</div>
 			</Section>
 
 			<Section

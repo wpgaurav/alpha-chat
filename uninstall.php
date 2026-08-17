@@ -35,6 +35,7 @@ function alpha_chat_uninstall_site(): void {
 		$wpdb->prefix . 'alpha_chat_messages',
 		$wpdb->prefix . 'alpha_chat_contacts',
 		$wpdb->prefix . 'alpha_chat_faqs',
+		$wpdb->prefix . 'alpha_chat_logs',
 	];
 
 	foreach ( $tables as $table ) {
@@ -53,6 +54,7 @@ function alpha_chat_uninstall_site(): void {
 	}
 
 	delete_transient( 'alpha_chat_update_info' );
+	wp_clear_scheduled_hook( 'alpha_chat_prune_logs' );
 
 	$wpdb->query(
 		$wpdb->prepare(

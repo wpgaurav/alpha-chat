@@ -20,6 +20,62 @@ final class ThreadRepository {
 		return is_array( $row ) ? self::hydrate( $row ) : null;
 	}
 
+	/** @return array<string, mixed>|null */
+	public function find_by_id( int $id ): ?array {
+		global $wpdb;
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT * FROM ' . esc_sql( Schema::threads_table() ) . ' WHERE id = %d',
+				$id
+			),
+			ARRAY_A
+		);
+		return is_array( $row ) ? self::hydrate( $row ) : null;
+	}
+
+	/**
+	 * Set a thread's title.
+	 *
+	 * @param bool $generated Whether this came from the model, which marks the
+	 *                        thread as named so it is not renamed again.
+	 */
+	public function set_title( int $thread_id, string $title, bool $generated = false ): void {
+		global $wpdb;
+
+		$wpdb->update(
+			Schema::threads_table(),
+			[
+				'title'           => mb_substr( $title, 0, 255 ),
+				'title_generated' => $generated ? 1 : 0,
+				'updated_at'      => current_time( 'mysql', true ),
+			],
+			[ 'id' => $thread_id ],
+			[ '%s', '%d', '%s' ],
+			[ '%d' ]
+		);
+	}
+
+	/**
+	 * Recount a thread's messages from the messages table.
+	 *
+	 * The counter used to be incremented only on a successful reply, so a failed
+	 * provider call left a thread reporting zero messages while its rows existed.
+	 */
+	public function sync_message_count( int $thread_id ): void {
+		global $wpdb;
+
+		$wpdb->query(
+			$wpdb->prepare(
+				'UPDATE ' . esc_sql( Schema::threads_table() ) . ' t
+				 SET t.message_count = (
+					SELECT COUNT(*) FROM ' . esc_sql( Schema::messages_table() ) . ' m WHERE m.thread_id = t.id
+				 )
+				 WHERE t.id = %d',
+				$thread_id
+			)
+		);
+	}
+
 	/** @return array<string, mixed> */
 	public function create( string $session_hash, ?int $user_id = null, string $origin_url = '' ): array {
 		global $wpdb;
@@ -38,6 +94,11 @@ final class ThreadRepository {
 		return $this->find_by_uuid( $uuid ) ?? [];
 	}
 
+	/**
+	 * @param int         $added_messages Deprecated. Counts are now derived with
+	 *                                    sync_message_count() so they stay correct
+	 *                                    when a request fails part-way.
+	 */
 	public function touch( int $thread_id, int $added_messages = 0, ?string $title = null ): void {
 		global $wpdb;
 		$updates = [ 'updated_at' => current_time( 'mysql', true ) ];
@@ -100,15 +161,16 @@ final class ThreadRepository {
 	 */
 	private static function hydrate( array $row ): array {
 		return [
-			'id'            => (int) $row['id'],
-			'uuid'          => (string) $row['uuid'],
-			'user_id'       => null === $row['user_id'] ? null : (int) $row['user_id'],
-			'session_hash'  => (string) $row['session_hash'],
-			'title'         => (string) $row['title'],
-			'origin_url'    => (string) ( $row['origin_url'] ?? '' ),
-			'message_count' => (int) $row['message_count'],
-			'created_at'    => (string) $row['created_at'],
-			'updated_at'    => (string) $row['updated_at'],
+			'id'              => (int) $row['id'],
+			'uuid'            => (string) $row['uuid'],
+			'user_id'         => null === $row['user_id'] ? null : (int) $row['user_id'],
+			'session_hash'    => (string) $row['session_hash'],
+			'title'           => (string) $row['title'],
+			'title_generated' => ! empty( $row['title_generated'] ),
+			'origin_url'      => (string) ( $row['origin_url'] ?? '' ),
+			'message_count'   => (int) $row['message_count'],
+			'created_at'      => (string) $row['created_at'],
+			'updated_at'      => (string) $row['updated_at'],
 		];
 	}
 }

@@ -20,6 +20,7 @@ final class ChatService {
 		private readonly TokenCounter $counter,
 		private readonly Logger $logger,
 		private readonly FaqRepository $faqs,
+		private readonly ?ThreadTitler $titler = null,
 	) {}
 
 	/**
@@ -113,6 +114,19 @@ final class ChatService {
 		$thread_id = (int) $thread['id'];
 		$this->messages->append( $thread_id, 'user', $message, $this->counter->count( $message ) );
 
+		// Title and count the thread as soon as the message is stored. Doing this
+		// only after a successful reply meant a failed provider call left the
+		// thread showing zero messages and a blank title, which the admin then
+		// rendered as a bare uuid.
+		if ( '' === (string) $thread['title'] ) {
+			// The default ellipsis is the HTML entity "&hellip;", which the admin
+			// renders as text and shows literally. Use the character instead.
+			$fallback_title  = wp_trim_words( $message, 8, '…' );
+			$this->threads->set_title( $thread_id, $fallback_title );
+			$thread['title'] = $fallback_title;
+		}
+		$this->threads->sync_message_count( $thread_id );
+
 		$history      = $this->messages->for_thread( $thread_id, 12 );
 		$current_page = PageContext::resolve( $origin_url, $origin_title );
 		$embed_text   = self::retrieval_query( $message, $history );
@@ -204,11 +218,12 @@ final class ChatService {
 			]
 		);
 
-		$this->threads->touch(
-			(int) $thread['id'],
-			2,
-			'' === $thread['title'] ? wp_trim_words( $message, 8 ) : null
-		);
+		$this->threads->sync_message_count( (int) $thread['id'] );
+		$this->threads->touch( (int) $thread['id'] );
+
+		// Name the conversation properly now that there is an exchange to read.
+		// This is queued, so it never delays or endangers the visitor's reply.
+		$this->titler?->schedule( (int) $thread['id'] );
 
 		do_action( 'alpha_chat_message_answered', (int) $thread['id'], $message, $reply, $sources );
 
