@@ -23,10 +23,58 @@ final class ChatService {
 	) {}
 
 	/**
-	 * @return array{thread_uuid: string, reply: string, flagged?: bool, sources: list<array{source_type: string, source_id: int, score: float}>}
+	 * @return array{thread_uuid: string, reply: string, flagged?: bool, sources: list<array<string, mixed>>}
 	 * @throws RuntimeException When a message cannot be processed.
 	 */
 	public function send( string $message, ?string $thread_uuid, string $session_hash, ?int $user_id = null, string $origin_url = '' ): array {
+		$prepared = $this->prepare( $message, $thread_uuid, $session_hash, $user_id, $origin_url );
+		if ( isset( $prepared['result'] ) ) {
+			return $prepared['result'];
+		}
+
+		if ( ! isset( $prepared['prompt'], $prepared['options'], $prepared['thread'], $prepared['message'], $prepared['chunks'] ) ) {
+			throw new RuntimeException( 'Invalid chat state.' );
+		}
+
+		try {
+			$completion = $this->providers->llm()->complete( $prepared['prompt'], $prepared['options'] );
+		} catch ( Throwable $e ) {
+			$this->logger->error( 'LLM completion failed', [ 'error' => $e->getMessage() ] );
+			throw $e;
+		}
+
+		return $this->finalize( $prepared, $completion );
+	}
+
+	/**
+	 * @param callable(string): void $on_delta
+	 *
+	 * @return array{thread_uuid: string, reply: string, flagged?: bool, sources: list<array<string, mixed>>}
+	 */
+	public function send_streaming( string $message, ?string $thread_uuid, string $session_hash, ?int $user_id, string $origin_url, callable $on_delta ): array {
+		$prepared = $this->prepare( $message, $thread_uuid, $session_hash, $user_id, $origin_url );
+		if ( isset( $prepared['result'] ) ) {
+			return $prepared['result'];
+		}
+
+		if ( ! isset( $prepared['prompt'], $prepared['options'], $prepared['thread'], $prepared['message'], $prepared['chunks'] ) ) {
+			throw new RuntimeException( 'Invalid chat state.' );
+		}
+
+		try {
+			$completion = $this->providers->llm()->stream( $prepared['prompt'], $prepared['options'], $on_delta );
+		} catch ( Throwable $e ) {
+			$this->logger->error( 'LLM stream failed', [ 'error' => $e->getMessage() ] );
+			throw $e;
+		}
+
+		return $this->finalize( $prepared, $completion );
+	}
+
+	/**
+	 * @return array{result?: array{thread_uuid: string, reply: string, flagged?: bool, sources: list<array<string, mixed>>}, prompt?: list<array{role: string, content: string}>, options?: array<string, mixed>, thread?: array<string, mixed>, message?: string, chunks?: list<array{id: string, score: float, metadata: array<string, mixed>}>}
+	 */
+	private function prepare( string $message, ?string $thread_uuid, string $session_hash, ?int $user_id, string $origin_url ): array {
 		$message = trim( $message );
 		if ( '' === $message ) {
 			throw new RuntimeException( 'Empty message.' );
@@ -38,10 +86,12 @@ final class ChatService {
 				if ( $moderation['flagged'] ) {
 					do_action( 'alpha_chat_message_flagged', $message, $moderation );
 					return [
-						'thread_uuid' => $thread_uuid ?? '',
-						'reply'       => (string) $this->settings->get( 'fallback_message', '' ),
-						'flagged'     => true,
-						'sources'     => [],
+						'result' => [
+							'thread_uuid' => $thread_uuid ?? '',
+							'reply'       => (string) $this->settings->get( 'fallback_message', '' ),
+							'flagged'     => true,
+							'sources'     => [],
+						],
 					];
 				}
 			} catch ( Throwable $e ) {
@@ -57,8 +107,11 @@ final class ChatService {
 		$thread_id = (int) $thread['id'];
 		$this->messages->append( $thread_id, 'user', $message, $this->counter->count( $message ) );
 
+		$history = $this->messages->for_thread( $thread_id, 12 );
+		$embed_text = self::retrieval_query( $message, $history );
+
 		try {
-			$query_vectors = $this->providers->embeddings()->embed( [ $message ] );
+			$query_vectors = $this->providers->embeddings()->embed( [ $embed_text ], [ 'input_type' => 'query' ] );
 		} catch ( Throwable $e ) {
 			$this->logger->error( 'Query embedding failed', [ 'error' => $e->getMessage() ] );
 			throw $e;
@@ -69,10 +122,20 @@ final class ChatService {
 			throw new RuntimeException( 'Could not produce embeddings for the query.' );
 		}
 
-		$max_chunks = (int) $this->settings->get( 'max_context_chunks', 5 );
-		$threshold  = (float) $this->settings->get( 'similarity_score_threshold', 0.4 );
+		$max_chunks   = (int) $this->settings->get( 'max_context_chunks', 5 );
+		$threshold    = (float) $this->settings->get( 'similarity_score_threshold', 0.4 );
+		$current_page = self::resolve_current_page( $origin_url );
 
-		$chunks = $this->providers->vector_store()->search( $query_vector, $max_chunks, $threshold );
+		$chunks = $this->providers->vector_store()->search(
+			$query_vector,
+			$max_chunks,
+			$threshold,
+			$this->providers->embeddings()->model(),
+			[
+				'text_query'        => $embed_text,
+				'prefer_source_id'  => (int) ( $current_page['post_id'] ?? 0 ),
+			]
+		);
 
 		/**
 		 * Filter the chunks used as context before sending to the LLM.
@@ -80,55 +143,68 @@ final class ChatService {
 		 * @param list<array{id: string, score: float, metadata: array<string, mixed>}> $chunks
 		 * @param string                                                                $message
 		 */
-		$chunks = self::enrich_chunks( (array) apply_filters( 'alpha_chat_retrieved_chunks', $chunks, $message ) );
+		/** @var list<array{id: string, score: float, metadata: array<string, mixed>}> $filtered_chunks */
+		$filtered_chunks = apply_filters( 'alpha_chat_retrieved_chunks', $chunks, $message );
+		$chunks          = self::enrich_chunks( $filtered_chunks );
 		$faqs   = $this->faqs->all( true );
 
-		$current_page = self::resolve_current_page( $origin_url );
-		$history      = $this->messages->for_thread( $thread_id, 12 );
-		$prompt       = $this->build_messages( $message, $chunks, $faqs, $history, $current_page );
-
-		$options = [
-			'temperature' => (float) $this->settings->get( 'temperature', 0.7 ),
-			'top_p'       => (float) $this->settings->get( 'top_p', 1.0 ),
-			'max_tokens'  => (int) $this->settings->get( 'max_response_tokens', 800 ),
+		return [
+			'prompt'          => $this->build_messages( $message, $chunks, $faqs, $history, $current_page ),
+			'options'         => [
+				'temperature'       => (float) $this->settings->get( 'temperature', 0.7 ),
+				'top_p'             => (float) $this->settings->get( 'top_p', 1.0 ),
+				'max_tokens'        => (int) $this->settings->get( 'max_response_tokens', 800 ),
+				'reasoning_effort'  => (string) $this->settings->get( 'reasoning_effort', 'low' ),
+			],
+			'thread'          => $thread,
+			'message'         => $message,
+			'chunks'          => $chunks,
+			'current_post_id' => (int) ( $current_page['post_id'] ?? 0 ),
 		];
+	}
 
-		try {
-			$completion = $this->providers->llm()->complete( $prompt, $options );
-		} catch ( Throwable $e ) {
-			$this->logger->error( 'LLM completion failed', [ 'error' => $e->getMessage() ] );
-			throw $e;
-		}
+	/**
+	 * @param array{thread: array<string, mixed>, message: string, chunks: list<array{id: string, score: float, metadata: array<string, mixed>}>} $prepared
+	 * @param array{content: string, usage?: array<string, int>}                                       $completion
+	 *
+	 * @return array{thread_uuid: string, reply: string, sources: list<array<string, mixed>>}
+	 */
+	private function finalize( array $prepared, array $completion ): array {
+		$thread  = $prepared['thread'];
+		$message = $prepared['message'];
+		$chunks  = $prepared['chunks'];
 
 		$reply = trim( $completion['content'] );
 		if ( '' === $reply ) {
 			$reply = (string) $this->settings->get( 'fallback_message', '' );
 		}
 
-		$sources = self::hydrate_sources( $chunks );
+		$used    = SourcePicker::used( $chunks, $reply, $message, (int) ( $prepared['current_post_id'] ?? 0 ) );
+		$sources = self::hydrate_sources( $used );
 
 		$this->messages->append(
-			$thread_id,
+			(int) $thread['id'],
 			'assistant',
 			$reply,
 			$this->counter->count( $reply ),
 			[
-				'sources' => $sources,
-				'usage'   => $completion['usage'] ?? null,
-				'model'   => (string) $this->settings->get( 'chat_model', '' ),
+				'sources'   => $sources,
+				'retrieved' => self::hydrate_sources( $chunks ),
+				'usage'     => $completion['usage'] ?? null,
+				'model'     => (string) $this->settings->get( 'chat_model', '' ),
 			]
 		);
 
 		$this->threads->touch(
-			$thread_id,
+			(int) $thread['id'],
 			2,
 			'' === $thread['title'] ? wp_trim_words( $message, 8 ) : null
 		);
 
-		do_action( 'alpha_chat_message_answered', $thread_id, $message, $reply, $sources );
+		do_action( 'alpha_chat_message_answered', (int) $thread['id'], $message, $reply, $sources );
 
 		if ( empty( $chunks ) ) {
-			do_action( 'alpha_chat_unanswered_question', $thread_id, $message );
+			do_action( 'alpha_chat_unanswered_question', (int) $thread['id'], $message );
 		}
 
 		return [
@@ -142,7 +218,7 @@ final class ChatService {
 	 * @param list<array{id: string, score: float, metadata: array<string, mixed>}>           $chunks
 	 * @param list<array{id:int, question:string, answer:string, sort_order:int, enabled:bool, created_at:string, updated_at:string}> $faqs
 	 * @param list<array<string, mixed>>                                                      $history
-	 * @param array{url:string,title:string,content:string}|null                              $current_page
+	 * @param array{url:string,title:string,content:string,post_id:int}|null                  $current_page
 	 *
 	 * @return list<array{role: string, content: string}>
 	 */
@@ -181,7 +257,8 @@ final class ChatService {
 
 		if ( ! empty( $chunks ) ) {
 			$context  = "Numbered site context. Prefer these passages for factual claims about the site; when they cover the topic, answer in 2–5 short sentences. When they don't, still help the user using general knowledge or the current page above — do not invent links or sources.\n";
-			$context .= "Do NOT include bracketed citation markers like [1] or [2] in your reply — the UI renders source links separately.\n\n";
+			$context .= "Do NOT include bracketed citation markers like [1] or [2] in your reply — the UI renders source links separately.\n";
+			$context .= "Do not invent titles or URLs that are not in the numbered context.\n\n";
 			foreach ( $chunks as $i => $chunk ) {
 				$meta  = (array) ( $chunk['metadata'] ?? [] );
 				$title = (string) ( $meta['title'] ?? '' );
@@ -220,7 +297,7 @@ final class ChatService {
 	 * Resolve the user's current page URL to a lightweight title/content block
 	 * the LLM can reference for "this page", "explain this", etc.
 	 *
-	 * @return array{url: string, title: string, content: string}|null
+	 * @return array{url: string, title: string, content: string, post_id: int}|null
 	 */
 	private static function resolve_current_page( string $origin_url ): ?array {
 		$origin_url = trim( $origin_url );
@@ -234,6 +311,7 @@ final class ChatService {
 				'url'     => $origin_url,
 				'title'   => '',
 				'content' => '',
+				'post_id' => 0,
 			];
 		}
 
@@ -243,6 +321,7 @@ final class ChatService {
 				'url'     => $origin_url,
 				'title'   => '',
 				'content' => '',
+				'post_id' => 0,
 			];
 		}
 
@@ -259,7 +338,34 @@ final class ChatService {
 			'url'     => (string) get_permalink( $post_id ),
 			'title'   => (string) get_the_title( $post_id ),
 			'content' => $content,
+			'post_id' => $post_id,
 		];
+	}
+
+	/**
+	 * @param list<array<string, mixed>> $history
+	 */
+	private static function retrieval_query( string $message, array $history ): string {
+		$previous_user      = '';
+		$previous_assistant = '';
+		$count              = count( $history );
+
+		if ( $count >= 3 ) {
+			$maybe_assistant = $history[ $count - 2 ];
+			$maybe_user      = $history[ $count - 3 ];
+			if ( 'assistant' === ( $maybe_assistant['role'] ?? '' ) ) {
+				$previous_assistant = (string) $maybe_assistant['content'];
+			}
+			if ( 'user' === ( $maybe_user['role'] ?? '' ) ) {
+				$previous_user = (string) $maybe_user['content'];
+			}
+		}
+
+		if ( ! QueryRewriter::is_follow_up( $message ) || ( '' === $previous_user && '' === $previous_assistant ) ) {
+			return $message;
+		}
+
+		return QueryRewriter::rewrite( $message, $previous_user, $previous_assistant );
 	}
 
 	/**

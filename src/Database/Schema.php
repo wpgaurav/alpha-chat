@@ -5,7 +5,7 @@ namespace AlphaChat\Database;
 
 final class Schema {
 
-	public const VERSION = '1.4.0';
+	public const VERSION = '1.5.0';
 
 	public static function install(): void {
 		global $wpdb;
@@ -37,7 +37,8 @@ final class Schema {
 				PRIMARY KEY  (id),
 				KEY source (source_type, source_id),
 				KEY status (status),
-				KEY content_hash (content_hash)
+				KEY content_hash (content_hash),
+				FULLTEXT KEY content_ft (content)
 			) $charset_collate;",
 
 			"CREATE TABLE $threads (

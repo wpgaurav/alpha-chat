@@ -82,7 +82,14 @@ final class Plugin {
 	private function register_services( Container $c ): void {
 		$c->set( Logger::class, static fn () => new Logger() );
 		$c->set( TokenCounter::class, static fn () => new TokenCounter() );
-		$c->set( HttpClient::class, static fn () => new HttpClient() );
+		$c->set(
+			HttpClient::class,
+			static function (): HttpClient {
+				$timeout = (int) apply_filters( 'alpha_chat_http_timeout', 60 );
+
+				return new HttpClient( max( 1, $timeout ) );
+			},
+		);
 		$c->set( SettingsRepository::class, static fn () => new SettingsRepository() );
 		$c->set( LicenseManager::class, static fn () => new LicenseManager() );
 

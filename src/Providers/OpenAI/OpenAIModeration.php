@@ -4,8 +4,9 @@ declare(strict_types=1);
 namespace AlphaChat\Providers\OpenAI;
 
 use AlphaChat\Http\HttpClient;
+use AlphaChat\Providers\Contracts\ModerationProvider;
 
-final class OpenAIModeration {
+final class OpenAIModeration implements ModerationProvider {
 
 	private const ENDPOINT = 'https://api.openai.com/v1/moderations';
 
@@ -13,6 +14,10 @@ final class OpenAIModeration {
 		private readonly HttpClient $http,
 		private readonly string $api_key,
 	) {}
+
+	public function id(): string {
+		return 'openai';
+	}
 
 	/**
 	 * @return array{flagged: bool, categories: array<string, bool>, scores: array<string, float>}

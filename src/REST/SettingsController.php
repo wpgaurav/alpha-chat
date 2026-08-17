@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace AlphaChat\REST;
 
 use AlphaChat\KnowledgeBase\Indexer;
+use AlphaChat\Providers\ModelCatalog;
 use AlphaChat\Settings\SettingsRepository;
 use WP_Error;
 use WP_REST_Request;
@@ -51,6 +52,7 @@ final class SettingsController {
 			[
 				'settings' => $settings,
 				'stats'    => $this->indexer->stats(),
+				'catalog'  => ModelCatalog::all(),
 			]
 		);
 	}
@@ -71,6 +73,7 @@ final class SettingsController {
 			[
 				'settings' => $this->settings->mask_secrets_for_display( $saved ),
 				'stats'    => $this->indexer->stats(),
+				'catalog'  => ModelCatalog::all(),
 			]
 		);
 	}

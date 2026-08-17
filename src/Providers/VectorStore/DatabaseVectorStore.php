@@ -92,47 +92,196 @@ final class DatabaseVectorStore implements VectorStore {
 	 *
 	 * @return list<array{id: string, score: float, metadata: array<string, mixed>}>
 	 */
-	public function search( array $query, int $limit = 5, float $threshold = 0.0 ): array {
-		global $wpdb;
+	public function search( array $query, int $limit = 5, float $threshold = 0.0, string $embedding_model = '', array $options = [] ): array {
+		$text_query        = trim( (string) ( $options['text_query'] ?? '' ) );
+		$prefer_source_id  = (int) ( $options['prefer_source_id'] ?? 0 );
+		$prefer_bonus      = (float) ( $options['prefer_bonus'] ?? 0.05 );
+		$prefer_force      = (int) ( $options['prefer_force'] ?? 2 );
 
-		$table = Schema::chunks_table();
-		$rows  = $wpdb->get_results(
-			"SELECT id, source_type, source_id, chunk_index, content, token_count, embedding FROM " . esc_sql( $table ) . " WHERE status = 'ready' AND embedding IS NOT NULL",
-			ARRAY_A
-		);
+		$rows = $this->candidate_rows( $text_query, $embedding_model, $prefer_source_id );
 
-		if ( ! is_array( $rows ) || empty( $rows ) ) {
-			return [];
-		}
+		/**
+		 * Filter retrieval candidate rows before cosine ranking.
+		 *
+		 * @param list<array<string, mixed>> $rows            Candidate chunk rows.
+		 * @param string                     $text_query      Text used for FULLTEXT.
+		 * @param string                     $embedding_model Active embedding model.
+		 */
+		$rows = (array) apply_filters( 'alpha_chat_retrieval_candidates', $rows, $text_query, $embedding_model );
 
-		$scored = [];
+		$scored         = [];
+		$preferred      = [];
 		foreach ( $rows as $row ) {
-			$vector = Similarity::unpack( (string) $row['embedding'] );
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$vector = Similarity::unpack( (string) ( $row['embedding'] ?? '' ) );
 			if ( empty( $vector ) ) {
 				continue;
 			}
 
-			$score = Similarity::cosine( $query, $vector );
+			$score     = Similarity::cosine( $query, $vector );
+			$source_id = (int) ( $row['source_id'] ?? 0 );
+			if ( $prefer_source_id > 0 && $source_id === $prefer_source_id ) {
+				$score += $prefer_bonus;
+			}
+
+			$item = [
+				'id'       => self::build_id( (string) ( $row['source_type'] ?? 'post' ), $source_id, (int) ( $row['chunk_index'] ?? 0 ) ),
+				'score'    => $score,
+				'metadata' => [
+					'source_type' => (string) ( $row['source_type'] ?? 'post' ),
+					'source_id'   => $source_id,
+					'chunk_index' => (int) ( $row['chunk_index'] ?? 0 ),
+					'content'     => (string) ( $row['content'] ?? '' ),
+					'token_count' => (int) ( $row['token_count'] ?? 0 ),
+				],
+			];
+
+			if ( $prefer_source_id > 0 && $source_id === $prefer_source_id ) {
+				$preferred[] = $item;
+			}
+
 			if ( $score < $threshold ) {
 				continue;
 			}
 
-			$scored[] = [
-				'id'       => self::build_id( (string) $row['source_type'], (int) $row['source_id'], (int) $row['chunk_index'] ),
-				'score'    => $score,
-				'metadata' => [
-					'source_type' => (string) $row['source_type'],
-					'source_id'   => (int) $row['source_id'],
-					'chunk_index' => (int) $row['chunk_index'],
-					'content'     => (string) $row['content'],
-					'token_count' => (int) $row['token_count'],
-				],
-			];
+			$scored[] = $item;
 		}
 
+		usort( $preferred, static fn ( array $a, array $b ): int => $b['score'] <=> $a['score'] );
 		usort( $scored, static fn ( array $a, array $b ): int => $b['score'] <=> $a['score'] );
 
-		return array_slice( $scored, 0, max( 1, $limit ) );
+		$forced = array_slice( $preferred, 0, max( 0, $prefer_force ) );
+		$merged = [];
+		foreach ( array_merge( $forced, $scored ) as $item ) {
+			$merged[ $item['id'] ] = $item;
+		}
+
+		$ranked = array_values( $merged );
+		usort( $ranked, static fn ( array $a, array $b ): int => $b['score'] <=> $a['score'] );
+
+		return array_slice( $ranked, 0, max( 1, $limit ) );
+	}
+
+	/**
+	 * @return list<array<string, mixed>>
+	 */
+	private function candidate_rows( string $text_query, string $embedding_model, int $prefer_source_id ): array {
+		$by_id = [];
+
+		if ( '' !== $text_query ) {
+			foreach ( $this->fulltext_rows( $text_query, $embedding_model, 50 ) as $row ) {
+				$by_id[ (int) $row['id'] ] = $row;
+			}
+		}
+
+		if ( $prefer_source_id > 0 ) {
+			foreach ( $this->source_rows( 'post', $prefer_source_id, $embedding_model ) as $row ) {
+				$by_id[ (int) $row['id'] ] = $row;
+			}
+		}
+
+		if ( empty( $by_id ) ) {
+			foreach ( $this->fallback_rows( $embedding_model, 2000 ) as $row ) {
+				$by_id[ (int) $row['id'] ] = $row;
+			}
+		}
+
+		return array_values( $by_id );
+	}
+
+	/**
+	 * @return list<array<string, mixed>>
+	 */
+	private function fulltext_rows( string $text_query, string $embedding_model, int $limit ): array {
+		global $wpdb;
+		$table = Schema::chunks_table();
+
+		$sql = 'SELECT id, source_type, source_id, chunk_index, content, token_count, embedding FROM ' . esc_sql( $table ) . " WHERE status = 'ready' AND embedding IS NOT NULL";
+		$args = [];
+		if ( '' !== $embedding_model ) {
+			$sql   .= ' AND embedding_model = %s';
+			$args[] = $embedding_model;
+		}
+		$sql   .= ' AND MATCH(content) AGAINST (%s IN NATURAL LANGUAGE MODE) LIMIT %d';
+		$args[] = $text_query;
+		$args[] = $limit;
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name is escaped; remaining values are bound.
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+		if ( ! is_array( $rows ) || '' !== (string) $wpdb->last_error ) {
+			return [];
+		}
+
+		$out = [];
+		foreach ( $rows as $row ) {
+			if ( is_array( $row ) ) {
+				$out[] = $row;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * @return list<array<string, mixed>>
+	 */
+	private function source_rows( string $source_type, int $source_id, string $embedding_model ): array {
+		global $wpdb;
+		$table = Schema::chunks_table();
+
+		$sql = 'SELECT id, source_type, source_id, chunk_index, content, token_count, embedding FROM ' . esc_sql( $table ) . " WHERE status = 'ready' AND embedding IS NOT NULL AND source_type = %s AND source_id = %d";
+		$args = [ $source_type, $source_id ];
+		if ( '' !== $embedding_model ) {
+			$sql   .= ' AND embedding_model = %s';
+			$args[] = $embedding_model;
+		}
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name is escaped; remaining values are bound.
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+		if ( ! is_array( $rows ) ) {
+			return [];
+		}
+
+		$out = [];
+		foreach ( $rows as $row ) {
+			if ( is_array( $row ) ) {
+				$out[] = $row;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * @return list<array<string, mixed>>
+	 */
+	private function fallback_rows( string $embedding_model, int $limit ): array {
+		global $wpdb;
+		$table = Schema::chunks_table();
+
+		$sql = 'SELECT id, source_type, source_id, chunk_index, content, token_count, embedding FROM ' . esc_sql( $table ) . " WHERE status = 'ready' AND embedding IS NOT NULL";
+		$args = [];
+		if ( '' !== $embedding_model ) {
+			$sql   .= ' AND embedding_model = %s';
+			$args[] = $embedding_model;
+		}
+		$sql   .= ' ORDER BY id DESC LIMIT %d';
+		$args[] = $limit;
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name is escaped; remaining values are bound.
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+
+		if ( ! is_array( $rows ) ) {
+			return [];
+		}
+
+		$out = [];
+		foreach ( $rows as $row ) {
+			if ( is_array( $row ) ) {
+				$out[] = $row;
+			}
+		}
+		return $out;
 	}
 
 	/**

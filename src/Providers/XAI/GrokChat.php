@@ -1,26 +1,26 @@
 <?php
 declare(strict_types=1);
 
-namespace AlphaChat\Providers\OpenAI;
+namespace AlphaChat\Providers\XAI;
 
 use AlphaChat\Http\HttpClient;
 use AlphaChat\Providers\Contracts\LLMProvider;
 use AlphaChat\Providers\OpenAICompatible\ChatCompletionsClient;
 
-final class OpenAIChat implements LLMProvider {
+final class GrokChat implements LLMProvider {
 
-	private const ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+	private const ENDPOINT = 'https://api.x.ai/v1/chat/completions';
 
 	private readonly ChatCompletionsClient $client;
 
 	public function __construct(
 		HttpClient $http,
 		string $api_key,
-		string $model = 'gpt-5.6-luna',
+		string $model = 'grok-4.6',
 	) {
 		$this->client = new ChatCompletionsClient(
 			$http,
-			'openai',
+			'xai',
 			self::ENDPOINT,
 			$api_key,
 			$model,

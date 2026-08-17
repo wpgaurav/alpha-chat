@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace AlphaChat\Settings;
 
+use AlphaChat\Providers\ModelCatalog;
+use AlphaChat\Providers\ReasoningMap;
+
 final class SettingsRepository {
 
 	public const OPTION_KEY = 'alpha_chat_settings';
@@ -14,7 +17,10 @@ final class SettingsRepository {
 			$saved = [];
 		}
 
-		return array_replace_recursive( self::defaults(), $saved );
+		$settings               = array_replace_recursive( self::defaults(), $saved );
+		$settings['chat_model'] = ModelCatalog::remap_chat_model( (string) ( $settings['chat_model'] ?? '' ) );
+
+		return $settings;
 	}
 
 	public function get( string $key, mixed $default = null ): mixed {
@@ -44,14 +50,18 @@ final class SettingsRepository {
 			$output = [];
 		}
 
-		$string_keys = [ 'llm_provider', 'chat_model', 'embedding_model', 'welcome_message', 'fallback_message', 'system_prompt', 'launcher_nudge', 'launcher_position', 'contact_cta_label', 'contact_success_message', 'brand_name', 'contact_notify_email' ];
+		$string_keys = [ 'llm_provider', 'chat_model', 'embedding_provider', 'embedding_model', 'welcome_message', 'fallback_message', 'system_prompt', 'launcher_nudge', 'launcher_position', 'contact_cta_label', 'contact_success_message', 'brand_name', 'contact_notify_email' ];
 		foreach ( $string_keys as $key ) {
 			if ( isset( $input[ $key ] ) ) {
 				$output[ $key ] = sanitize_text_field( (string) $input[ $key ] );
 			}
 		}
 
-		$secret_keys = [ 'openai_api_key', 'anthropic_api_key' ];
+		if ( isset( $input['reasoning_effort'] ) ) {
+			$output['reasoning_effort'] = ReasoningMap::sanitize( (string) $input['reasoning_effort'] );
+		}
+
+		$secret_keys = ModelCatalog::secret_keys();
 		foreach ( $secret_keys as $key ) {
 			if ( ! array_key_exists( $key, $input ) ) {
 				continue;
@@ -143,7 +153,7 @@ final class SettingsRepository {
 	 * @return array<string, mixed>
 	 */
 	public function mask_secrets_for_display( array $settings ): array {
-		foreach ( [ 'openai_api_key', 'anthropic_api_key' ] as $key ) {
+		foreach ( ModelCatalog::secret_keys() as $key ) {
 			if ( isset( $settings[ $key ] ) && is_string( $settings[ $key ] ) ) {
 				$settings[ $key ] = self::mask_secret( $settings[ $key ] );
 			}
@@ -169,7 +179,12 @@ final class SettingsRepository {
 				'moderation_enabled'         => true,
 				'openai_api_key'             => '',
 				'anthropic_api_key'          => '',
-				'chat_model'                 => 'gpt-5.4-mini',
+				'xai_api_key'                => '',
+				'deepseek_api_key'           => '',
+				'voyage_api_key'             => '',
+				'chat_model'                 => 'gpt-5.6-luna',
+				'reasoning_effort'           => ReasoningMap::DEFAULT,
+				'embedding_provider'         => 'openai',
 				'embedding_model'            => 'text-embedding-3-small',
 				'temperature'                => 0.7,
 				'top_p'                      => 1.0,

@@ -47,14 +47,54 @@ async function api< T >( path: string, init: ApiInit = {} ): Promise< T > {
 	return data as T;
 }
 
+export type ProviderId = 'openai' | 'anthropic' | 'xai' | 'deepseek';
+
+export type CatalogModel = {
+	id: string;
+	label: string;
+};
+
+export type CatalogPreset = {
+	chat_model: string;
+	temperature: number;
+	max_response_tokens: number;
+	reasoning_effort?: string;
+};
+
+export type CatalogProvider = {
+	id: string;
+	label: string;
+	secret_key: string;
+	models: CatalogModel[];
+	presets: Record< 'fast' | 'balanced' | 'quality', CatalogPreset >;
+};
+
+export type CatalogEmbeddingProvider = {
+	id: string;
+	label: string;
+	secret_key: string;
+	models: CatalogModel[];
+};
+
+export type ModelCatalog = {
+	providers: CatalogProvider[];
+	embeddings: CatalogEmbeddingProvider[];
+	reasoning: CatalogModel[];
+};
+
 export type Settings = {
-	llm_provider: 'openai' | 'anthropic';
+	llm_provider: ProviderId | string;
 	chat_enabled: boolean;
 	show_launcher: boolean;
 	moderation_enabled: boolean;
 	openai_api_key: string;
 	anthropic_api_key: string;
+	xai_api_key: string;
+	deepseek_api_key: string;
+	voyage_api_key: string;
 	chat_model: string;
+	reasoning_effort: string;
+	embedding_provider: string;
 	embedding_model: string;
 	temperature: number;
 	top_p: number;
@@ -106,6 +146,7 @@ export type Stats = {
 export type SettingsResponse = {
 	settings: Settings;
 	stats: Stats;
+	catalog: ModelCatalog;
 };
 
 export type KbItem = {

@@ -45,6 +45,12 @@ final class SettingsRepositoryTest extends TestCase {
 		$this->assertArrayHasKey( 'chat_model', $defaults );
 		$this->assertArrayHasKey( 'similarity_score_threshold', $defaults );
 		$this->assertArrayHasKey( 'colors', $defaults );
+		$this->assertArrayHasKey( 'xai_api_key', $defaults );
+		$this->assertArrayHasKey( 'deepseek_api_key', $defaults );
+		$this->assertArrayHasKey( 'voyage_api_key', $defaults );
+		$this->assertSame( 'openai', $defaults['embedding_provider'] );
+		$this->assertSame( 'low', $defaults['reasoning_effort'] );
+		$this->assertSame( 'gpt-5.6-luna', $defaults['chat_model'] );
 	}
 
 	public function test_mask_secret_returns_bullets(): void {
@@ -59,12 +65,18 @@ final class SettingsRepositoryTest extends TestCase {
 			[
 				'openai_api_key'    => 'sk-abcdef1234567890',
 				'anthropic_api_key' => '',
+				'xai_api_key'       => 'xai-secret-key',
+				'deepseek_api_key'  => 'sk-deepseek-secret',
+				'voyage_api_key'    => 'pa-voyage-secret',
 				'other'             => 'keep me',
 			]
 		);
 
 		$this->assertStringContainsString( '•', $masked['openai_api_key'] );
 		$this->assertSame( '', $masked['anthropic_api_key'] );
+		$this->assertStringContainsString( '•', $masked['xai_api_key'] );
+		$this->assertStringContainsString( '•', $masked['deepseek_api_key'] );
+		$this->assertStringContainsString( '•', $masked['voyage_api_key'] );
 		$this->assertSame( 'keep me', $masked['other'] );
 	}
 
@@ -102,6 +114,60 @@ final class SettingsRepositoryTest extends TestCase {
 		$sanitized = $repo->sanitize( [ 'openai_api_key' => str_repeat( '•', 12 ) ] );
 
 		$this->assertSame( 'sk-existing', $sanitized['openai_api_key'] );
+	}
+
+	public function test_sanitize_preserves_new_provider_secrets_when_bullets_submitted(): void {
+		Functions\when( 'get_option' )->alias(
+			static fn ( string $key ): string|array => 'admin_email' === $key
+				? 'admin@example.com'
+				: [
+					'xai_api_key'      => 'xai-existing',
+					'deepseek_api_key' => 'ds-existing',
+				]
+		);
+
+		$repo      = new SettingsRepository();
+		$sanitized = $repo->sanitize(
+			[
+				'xai_api_key'      => str_repeat( '•', 12 ),
+				'deepseek_api_key' => str_repeat( '•', 12 ),
+			]
+		);
+
+		$this->assertSame( 'xai-existing', $sanitized['xai_api_key'] );
+		$this->assertSame( 'ds-existing', $sanitized['deepseek_api_key'] );
+	}
+
+	public function test_all_remaps_retired_openai_models_without_rewriting_option(): void {
+		$stored = [ 'chat_model' => 'gpt-5.4-mini' ];
+
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, mixed $fallback = null ) use ( &$stored ): mixed {
+				if ( 'admin_email' === $key ) {
+					return 'admin@example.com';
+				}
+				if ( SettingsRepository::OPTION_KEY === $key ) {
+					return $stored;
+				}
+				return $fallback ?? '';
+			}
+		);
+
+		$repo = new SettingsRepository();
+
+		$this->assertSame( 'gpt-5.6-luna', $repo->get( 'chat_model' ) );
+		$this->assertSame( 'gpt-5.4-mini', $stored['chat_model'] );
+	}
+
+	public function test_sanitize_rejects_vendor_only_reasoning_levels(): void {
+		Functions\when( 'get_option' )->alias(
+			static fn ( string $key ): string|array => 'admin_email' === $key ? 'admin@example.com' : []
+		);
+
+		$repo      = new SettingsRepository();
+		$sanitized = $repo->sanitize( [ 'reasoning_effort' => 'xhigh' ] );
+
+		$this->assertSame( 'low', $sanitized['reasoning_effort'] );
 	}
 
 	public function test_sanitize_accepts_new_secret(): void {

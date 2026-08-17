@@ -6,7 +6,7 @@ AI-powered chatbot for WordPress. Indexes your site content, answers visitor que
 
 - **Grounded answers** — RAG over your posts, pages, and any public custom post type. Cites the sources it used.
 - **No external services required** — vector store lives in `wp_alpha_chat_chunks` (MySQL). Only the LLM + embedding provider calls leave your site.
-- **Providers** — OpenAI (`gpt-5.4`, `gpt-5.4-mini`, `gpt-4.1`) and Anthropic (`claude-opus-4-7`, `claude-sonnet-4-6`, `claude-haiku-4-5`). Embeddings via OpenAI `text-embedding-3-small` / `-large`.
+- **Providers** — Chat: OpenAI (`gpt-5.6-luna`, `gpt-5.6-terra`, `gpt-5.6-sol`), Anthropic (`claude-opus-4-7`, `claude-sonnet-4-6`, `claude-haiku-4-5`), xAI (`grok-4.6`, `grok-4.5`), and DeepSeek (`deepseek-v4-flash`, `deepseek-v4-pro`). Embeddings: OpenAI (`text-embedding-3-small` / `-large`) or Voyage (`voyage-4-lite`, `voyage-4`, `voyage-4-large`). Moderation is optional and uses OpenAI only when that key is present.
 - **Token-frugal** — empty retrieval returns the configurable fallback without calling the LLM.
 - **Performance-first** — floating launcher is opt-in. Chat assets only load on pages using the block or `[alpha_chat]` shortcode. Script uses `defer`.
 - **Theme-proof widget** — mounts inside a Shadow DOM with all styles inlined; no host CSS bleeds in.
@@ -24,7 +24,7 @@ AI-powered chatbot for WordPress. Indexes your site content, answers visitor que
 
 1. Upload `alpha-chat.zip` via **Plugins → Add New → Upload Plugin**, or clone this repo into `wp-content/plugins/alpha-chat` and run `composer install --no-dev && npm install && npm run build`.
 2. Activate.
-3. Go to **Alpha Chat → Settings** and add your OpenAI API key (required for embeddings + moderation). Add an Anthropic key only if you pick Claude as the chat model.
+3. Go to **Alpha Chat → Settings**. Pick a chat provider and an embedding provider independently. OpenAI is only required if you use it for chat, embeddings, or moderation. Voyage can handle embeddings without an OpenAI key.
 4. **Knowledge Base** tab → filter *Not indexed* → **Index remaining** to ingest the site.
 5. Add `[alpha_chat]` to any page (or drop in the "Alpha Chat" Gutenberg block), or turn on **Settings → Behavior → Show floating launcher site-wide**.
 6. Open **Alpha Chat → License** and activate the free lifetime key from your FluentCart receipt or account for protected updates.
@@ -35,7 +35,7 @@ AI-powered chatbot for WordPress. Indexes your site content, answers visitor que
 - **Knowledge Base** — list every public post type; filter by type and by indexed/not-indexed; select rows to batch index or remove; "Index remaining" queues all unindexed items via Action Scheduler.
 - **Conversations** — thread history with per-message tokens + usage + sources; CSV export.
 - **Contacts** — submissions from the in-chat contact form.
-- **Settings** — provider, model, preset (Fast/Balanced/Quality), system prompt, welcome/fallback copy, launcher position (left/center/right), nudge text, brand name, contact form, widget colors (accent / panel / user bubble / assistant bubble), advanced tuning (temperature, top_p, max response tokens, similarity threshold, max context chunks).
+- **Settings** — provider, model, thinking level (off/low/medium/high, mapped per vendor), preset (Fast/Balanced/Quality), system prompt, welcome/fallback copy, launcher position (left/center/right), nudge text, brand name, contact form, widget colors (accent / panel / user bubble / assistant bubble), advanced tuning (temperature, top_p, max response tokens, similarity threshold, max context chunks).
 - **License** — activation and deactivation for the free lifetime FluentCart key used by protected plugin updates.
 
 ## Architecture
@@ -54,7 +54,12 @@ alpha-chat/
 │   ├── Providers/
 │   │   ├── Contracts/                   # LLMProvider, EmbeddingProvider, VectorStore
 │   │   ├── OpenAI/                      # Chat, Embeddings, Moderation
+│   │   ├── OpenAICompatible/            # Shared Chat Completions client
 │   │   ├── Anthropic/AnthropicChat.php
+│   │   ├── XAI/GrokChat.php
+│   │   ├── DeepSeek/DeepSeekChat.php
+│   │   ├── Voyage/VoyageEmbeddings.php
+│   │   ├── ModelCatalog.php             # Admin chat + embedding catalogs
 │   │   ├── VectorStore/DatabaseVectorStore.php
 │   │   └── ProviderFactory.php          # resolves from settings, filterable
 │   ├── KnowledgeBase/                   # Indexer + PostHooks (save/delete/trash)
@@ -114,7 +119,11 @@ See `HOOKS.md` for the full list. Highlights:
 | --- | --- | --- |
 | `alpha_chat_llm_provider` | filter | Swap the chat LLM. |
 | `alpha_chat_embedding_provider` | filter | Swap the embedding model. |
+| `alpha_chat_moderation_provider` | filter | Swap the moderation implementation. |
+| `alpha_chat_retrieval_candidates` | filter | Trim or replace chunk rows before cosine ranking. |
 | `alpha_chat_vector_store` | filter | Swap the vector store (default: site DB). |
+| `alpha_chat_model_catalog` | filter | Replace or extend the admin model catalog. |
+| `alpha_chat_http_timeout` | filter | Provider HTTP timeout in seconds (default 60). |
 | `alpha_chat_indexable_post_types` | filter | Restrict/extend which post types are indexable. |
 | `alpha_chat_retrieved_chunks` | filter | Post-process chunks before they go to the prompt. |
 | `alpha_chat_default_settings` | filter | Override defaults. |

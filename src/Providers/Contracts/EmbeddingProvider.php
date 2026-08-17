@@ -8,11 +8,12 @@ interface EmbeddingProvider {
 	/**
 	 * Generate embeddings for a batch of inputs.
 	 *
-	 * @param list<string> $inputs
+	 * @param list<string>         $inputs
+	 * @param array<string, mixed> $options Optional `input_type` (`query` or `document`).
 	 *
 	 * @return list<list<float>>
 	 */
-	public function embed( array $inputs ): array;
+	public function embed( array $inputs, array $options = [] ): array;
 
 	public function model(): string;
 

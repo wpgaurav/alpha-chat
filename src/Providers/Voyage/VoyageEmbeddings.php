@@ -1,20 +1,20 @@
 <?php
 declare(strict_types=1);
 
-namespace AlphaChat\Providers\OpenAI;
+namespace AlphaChat\Providers\Voyage;
 
 use AlphaChat\Http\HttpClient;
 use AlphaChat\Providers\Contracts\EmbeddingProvider;
 use AlphaChat\Providers\OpenAICompatible\EmbeddingsClient;
 
-final class OpenAIEmbeddings implements EmbeddingProvider {
+final class VoyageEmbeddings implements EmbeddingProvider {
 
-	private const ENDPOINT = 'https://api.openai.com/v1/embeddings';
+	private const ENDPOINT = 'https://api.voyageai.com/v1/embeddings';
 
 	private const DIMENSIONS = [
-		'text-embedding-3-small' => 1536,
-		'text-embedding-3-large' => 3072,
-		'text-embedding-ada-002' => 1536,
+		'voyage-4-lite'  => 1024,
+		'voyage-4'       => 1024,
+		'voyage-4-large' => 1024,
 	];
 
 	private readonly EmbeddingsClient $client;
@@ -22,15 +22,15 @@ final class OpenAIEmbeddings implements EmbeddingProvider {
 	public function __construct(
 		HttpClient $http,
 		string $api_key,
-		string $model = 'text-embedding-3-small',
+		string $model = 'voyage-4-lite',
 	) {
 		$this->client = new EmbeddingsClient(
 			$http,
 			self::ENDPOINT,
 			$api_key,
 			$model,
-			self::DIMENSIONS[ $model ] ?? 1536,
-			false,
+			self::DIMENSIONS[ $model ] ?? 1024,
+			true,
 		);
 	}
 

@@ -15,76 +15,15 @@ import {
 } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 
-import { adminApi, Settings } from '../api';
+import {
+	adminApi,
+	CatalogEmbeddingProvider,
+	CatalogProvider,
+	ModelCatalog,
+	Settings,
+} from '../api';
 
-type Provider = 'openai' | 'anthropic';
 type PresetKey = 'fast' | 'balanced' | 'quality';
-
-const CHAT_MODELS: Record< Provider, { label: string; value: string }[] > = {
-	openai: [
-		{ label: 'GPT-5.4 mini · fast, cheap', value: 'gpt-5.4-mini' },
-		{ label: 'GPT-5.4 · highest quality', value: 'gpt-5.4' },
-		{ label: 'GPT-4.1 · legacy', value: 'gpt-4.1' },
-	],
-	anthropic: [
-		{ label: 'Claude Haiku 4.5 · fast, cheap', value: 'claude-haiku-4-5' },
-		{ label: 'Claude Sonnet 4.6 · balanced', value: 'claude-sonnet-4-6' },
-		{
-			label: 'Claude Opus 4.7 · highest quality',
-			value: 'claude-opus-4-7',
-		},
-	],
-};
-
-const EMBEDDING_MODELS = [
-	{
-		label: 'text-embedding-3-small · fast, cheap',
-		value: 'text-embedding-3-small',
-	},
-	{
-		label: 'text-embedding-3-large · highest quality',
-		value: 'text-embedding-3-large',
-	},
-];
-
-const PRESETS: Record< PresetKey, Record< Provider, Partial< Settings > > > = {
-	fast: {
-		openai: {
-			chat_model: 'gpt-5.4-mini',
-			temperature: 0.3,
-			max_response_tokens: 600,
-		},
-		anthropic: {
-			chat_model: 'claude-haiku-4-5',
-			temperature: 0.3,
-			max_response_tokens: 600,
-		},
-	},
-	balanced: {
-		openai: {
-			chat_model: 'gpt-5.4-mini',
-			temperature: 0.7,
-			max_response_tokens: 800,
-		},
-		anthropic: {
-			chat_model: 'claude-sonnet-4-6',
-			temperature: 0.7,
-			max_response_tokens: 800,
-		},
-	},
-	quality: {
-		openai: {
-			chat_model: 'gpt-5.4',
-			temperature: 0.7,
-			max_response_tokens: 1500,
-		},
-		anthropic: {
-			chat_model: 'claude-opus-4-7',
-			temperature: 0.7,
-			max_response_tokens: 1500,
-		},
-	},
-};
 
 const COLOR_FIELDS: { key: string; label: string }[] = [
 	{ key: 'accent', label: __( 'Accent', 'alpha-chat' ) },
@@ -156,8 +95,39 @@ function ColorField( {
 	);
 }
 
+function thinkingHelp( providerId: string ): string {
+	if ( providerId === 'xai' ) {
+		return __(
+			'Grok cannot turn thinking fully off. Off is sent as low. xhigh is not used.',
+			'alpha-chat'
+		);
+	}
+	if ( providerId === 'deepseek' ) {
+		return __(
+			'Default is low. Off disables DeepSeek thinking. Medium/high stay below max so the widget does not time out.',
+			'alpha-chat'
+		);
+	}
+	if ( providerId === 'anthropic' ) {
+		return __(
+			'Claude has no effort ladder. This setting is saved but not sent.',
+			'alpha-chat'
+		);
+	}
+	return __(
+		'Mapped to OpenAI reasoning_effort. Off is none. xhigh and max are not used.',
+		'alpha-chat'
+	);
+}
+
+function secretValue( settings: Settings, key: string ): string {
+	const value = ( settings as unknown as Record< string, unknown > )[ key ];
+	return typeof value === 'string' ? value : '';
+}
+
 export function SettingsView() {
 	const [ settings, setSettings ] = useState< Settings | null >( null );
+	const [ catalog, setCatalog ] = useState< ModelCatalog | null >( null );
 	const [ saving, setSaving ] = useState( false );
 	const [ showAdvanced, setShowAdvanced ] = useState( false );
 	const [ notice, setNotice ] = useState< {
@@ -168,7 +138,10 @@ export function SettingsView() {
 	useEffect( () => {
 		adminApi
 			.getSettings()
-			.then( ( response ) => setSettings( response.settings ) )
+			.then( ( response ) => {
+				setSettings( response.settings );
+				setCatalog( response.catalog );
+			} )
 			.catch( ( error: Error ) =>
 				setNotice( { status: 'error', message: error.message } )
 			);
@@ -189,20 +162,42 @@ export function SettingsView() {
 		);
 	}
 
-	function changeProvider( provider: Provider ) {
-		const available = CHAT_MODELS[ provider ].map( ( m ) => m.value );
+	function changeEmbeddingProvider( provider: CatalogEmbeddingProvider ) {
+		const available = provider.models.map( ( model ) => model.id );
+		const nextModel =
+			settings && available.includes( settings.embedding_model )
+				? settings.embedding_model
+				: available[ 0 ];
+		updateMany( {
+			embedding_provider: provider.id,
+			embedding_model: nextModel,
+		} );
+	}
+
+	function changeProvider( provider: CatalogProvider ) {
+		const available = provider.models.map( ( model ) => model.id );
 		const nextModel =
 			settings && available.includes( settings.chat_model )
 				? settings.chat_model
 				: available[ 0 ];
-		updateMany( { llm_provider: provider, chat_model: nextModel } );
+		updateMany( {
+			llm_provider: provider.id,
+			chat_model: nextModel,
+		} );
 	}
 
-	function applyPreset( key: PresetKey ) {
-		if ( ! settings ) {
+	function applyPreset( key: PresetKey, provider: CatalogProvider ) {
+		const preset = provider.presets[ key ];
+		if ( ! preset ) {
 			return;
 		}
-		updateMany( PRESETS[ key ][ settings.llm_provider ] );
+		updateMany( preset );
+	}
+
+	function updateSecret( key: string, value: string ) {
+		setSettings( ( previous ) =>
+			previous ? { ...previous, [ key ]: value } : previous
+		);
 	}
 
 	async function save() {
@@ -227,7 +222,7 @@ export function SettingsView() {
 		}
 	}
 
-	if ( ! settings ) {
+	if ( ! settings || ! catalog ) {
 		return (
 			<div className="alpha-chat-settings__loading">
 				<Spinner />
@@ -235,8 +230,30 @@ export function SettingsView() {
 		);
 	}
 
-	const provider = settings.llm_provider;
-	const modelOptions = CHAT_MODELS[ provider ];
+	const selectedProvider =
+		catalog.providers.find(
+			( provider ) => provider.id === settings.llm_provider
+		) ?? catalog.providers[ 0 ];
+	const selectedEmbedding =
+		( catalog.embeddings ?? [] ).find(
+			( provider ) => provider.id === settings.embedding_provider
+		) ?? ( catalog.embeddings ?? [] )[ 0 ];
+	const modelOptions = ( selectedProvider?.models ?? [] ).map(
+		( model ) => ( {
+			label: model.label,
+			value: model.id,
+		} )
+	);
+	const embeddingOptions = ( selectedEmbedding?.models ?? [] ).map(
+		( model ) => ( {
+			label: model.label,
+			value: model.id,
+		} )
+	);
+	const needsOpenAiKey =
+		settings.llm_provider === 'openai' ||
+		( selectedEmbedding?.id ?? settings.embedding_provider ) === 'openai' ||
+		settings.moderation_enabled;
 
 	return (
 		<div className="alpha-chat-settings">
@@ -259,19 +276,28 @@ export function SettingsView() {
 				<ButtonGroup className="alpha-chat-presets">
 					<Button
 						variant="secondary"
-						onClick={ () => applyPreset( 'fast' ) }
+						onClick={ () =>
+							selectedProvider &&
+							applyPreset( 'fast', selectedProvider )
+						}
 					>
 						⚡ { __( 'Fast', 'alpha-chat' ) }
 					</Button>
 					<Button
 						variant="secondary"
-						onClick={ () => applyPreset( 'balanced' ) }
+						onClick={ () =>
+							selectedProvider &&
+							applyPreset( 'balanced', selectedProvider )
+						}
 					>
 						⚖️ { __( 'Balanced', 'alpha-chat' ) }
 					</Button>
 					<Button
 						variant="secondary"
-						onClick={ () => applyPreset( 'quality' ) }
+						onClick={ () =>
+							selectedProvider &&
+							applyPreset( 'quality', selectedProvider )
+						}
 					>
 						💎 { __( 'Quality', 'alpha-chat' ) }
 					</Button>
@@ -288,14 +314,19 @@ export function SettingsView() {
 				<div className="alpha-chat-grid-2">
 					<SelectControl
 						label={ __( 'Provider', 'alpha-chat' ) }
-						value={ provider }
-						options={ [
-							{ label: 'OpenAI', value: 'openai' },
-							{ label: 'Anthropic', value: 'anthropic' },
-						] }
-						onChange={ ( value ) =>
-							changeProvider( value as Provider )
-						}
+						value={ selectedProvider?.id ?? settings.llm_provider }
+						options={ catalog.providers.map( ( provider ) => ( {
+							label: provider.label,
+							value: provider.id,
+						} ) ) }
+						onChange={ ( value ) => {
+							const next = catalog.providers.find(
+								( provider ) => provider.id === value
+							);
+							if ( next ) {
+								changeProvider( next );
+							}
+						} }
 					/>
 					<SelectControl
 						label={ __( 'Chat model', 'alpha-chat' ) }
@@ -305,31 +336,111 @@ export function SettingsView() {
 					/>
 				</div>
 				<SelectControl
-					label={ __( 'Embedding model (OpenAI)', 'alpha-chat' ) }
-					value={ settings.embedding_model }
-					options={ EMBEDDING_MODELS }
-					onChange={ ( value ) => update( 'embedding_model', value ) }
+					label={ __( 'Thinking', 'alpha-chat' ) }
+					value={ settings.reasoning_effort || 'low' }
+					options={ ( catalog.reasoning ?? [] ).map( ( level ) => ( {
+						label: level.label,
+						value: level.id,
+					} ) ) }
+					onChange={ ( value ) =>
+						update( 'reasoning_effort', value )
+					}
+					help={ thinkingHelp( selectedProvider?.id ?? 'openai' ) }
 				/>
-				<TextControl
-					label={ __( 'OpenAI API key', 'alpha-chat' ) }
-					type="password"
-					value={ settings.openai_api_key }
-					onChange={ ( value ) => update( 'openai_api_key', value ) }
-					help={ __(
-						'Used for embeddings + moderation, plus OpenAI chat models.',
-						'alpha-chat'
-					) }
-				/>
-				{ provider === 'anthropic' && (
-					<TextControl
-						label={ __( 'Anthropic API key', 'alpha-chat' ) }
-						type="password"
-						value={ settings.anthropic_api_key }
+				<div className="alpha-chat-grid-2">
+					<SelectControl
+						label={ __( 'Embedding provider', 'alpha-chat' ) }
+						value={
+							selectedEmbedding?.id ?? settings.embedding_provider
+						}
+						options={ ( catalog.embeddings ?? [] ).map(
+							( provider ) => ( {
+								label: provider.label,
+								value: provider.id,
+							} )
+						) }
+						onChange={ ( value ) => {
+							const next = ( catalog.embeddings ?? [] ).find(
+								( provider ) => provider.id === value
+							);
+							if ( next ) {
+								changeEmbeddingProvider( next );
+							}
+						} }
+						help={ __(
+							'Independent of chat. Reindex the knowledge base after changing provider or model.',
+							'alpha-chat'
+						) }
+					/>
+					<SelectControl
+						label={ __( 'Embedding model', 'alpha-chat' ) }
+						value={ settings.embedding_model }
+						options={ embeddingOptions }
 						onChange={ ( value ) =>
-							update( 'anthropic_api_key', value )
+							update( 'embedding_model', value )
 						}
 					/>
+				</div>
+				{ needsOpenAiKey && (
+					<TextControl
+						label={ __( 'OpenAI API key', 'alpha-chat' ) }
+						type="password"
+						value={ settings.openai_api_key }
+						onChange={ ( value ) =>
+							update( 'openai_api_key', value )
+						}
+						help={ __(
+							'Needed only for OpenAI chat, OpenAI embeddings, or moderation.',
+							'alpha-chat'
+						) }
+					/>
 				) }
+				{ selectedProvider &&
+					selectedProvider.id !== 'openai' &&
+					selectedProvider.secret_key && (
+						<TextControl
+							label={
+								selectedProvider.label +
+								' ' +
+								__( 'API key', 'alpha-chat' )
+							}
+							type="password"
+							value={ secretValue(
+								settings,
+								selectedProvider.secret_key
+							) }
+							onChange={ ( value ) =>
+								updateSecret(
+									selectedProvider.secret_key,
+									value
+								)
+							}
+						/>
+					) }
+				{ selectedEmbedding &&
+					selectedEmbedding.id !== 'openai' &&
+					selectedEmbedding.secret_key &&
+					selectedEmbedding.secret_key !==
+						selectedProvider?.secret_key && (
+						<TextControl
+							label={
+								selectedEmbedding.label +
+								' ' +
+								__( 'API key', 'alpha-chat' )
+							}
+							type="password"
+							value={ secretValue(
+								settings,
+								selectedEmbedding.secret_key
+							) }
+							onChange={ ( value ) =>
+								updateSecret(
+									selectedEmbedding.secret_key,
+									value
+								)
+							}
+						/>
+					) }
 			</Section>
 
 			<Section title={ __( 'Behavior', 'alpha-chat' ) }>
@@ -361,6 +472,10 @@ export function SettingsView() {
 						onChange={ ( value ) =>
 							update( 'moderation_enabled', value )
 						}
+						help={ __(
+							'Uses OpenAI moderation. Turn off if you are not using an OpenAI key.',
+							'alpha-chat'
+						) }
 					/>
 				</div>
 				<TextareaControl

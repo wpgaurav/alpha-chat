@@ -80,6 +80,132 @@ function uid(): string {
 	return `${ Date.now() }-${ Math.random().toString( 36 ).slice( 2, 8 ) }`;
 }
 
+function chatHeaders( nonce: string ): Record< string, string > {
+	return {
+		'Content-Type': 'application/json',
+		'X-WP-Nonce': nonce,
+	};
+}
+
+function parseSseChunk( buffer: string ): {
+	events: { event: string; data: string }[];
+	rest: string;
+} {
+	const events: { event: string; data: string }[] = [];
+	const parts = buffer.split( '\n\n' );
+	const rest = parts.pop() ?? '';
+	for ( const block of parts ) {
+		let event = 'message';
+		const dataLines: string[] = [];
+		for ( const rawLine of block.split( '\n' ) ) {
+			const line = rawLine.replace( /\r$/, '' );
+			if ( line.startsWith( 'event:' ) ) {
+				event = line.slice( 6 ).trim();
+			} else if ( line.startsWith( 'data:' ) ) {
+				dataLines.push( line.slice( 5 ).trim() );
+			}
+		}
+		if ( dataLines.length ) {
+			events.push( { event, data: dataLines.join( '\n' ) } );
+		}
+	}
+	return { events, rest };
+}
+
+async function sendChatJson(
+	client: ClientData,
+	payload: Record< string, string | null >
+): Promise< ChatResponse > {
+	const response = await fetch( `${ client.restUrl }/chat`, {
+		method: 'POST',
+		headers: chatHeaders( client.nonce ),
+		credentials: 'same-origin',
+		body: JSON.stringify( payload ),
+	} );
+	const raw = await response.text();
+	const data = raw
+		? ( JSON.parse( raw ) as ChatResponse | { message?: string } )
+		: null;
+	if ( ! response.ok || ! data || ! ( 'reply' in data ) ) {
+		throw new Error(
+			( data && 'message' in data && data.message ) ||
+				`Request failed (${ response.status })`
+		);
+	}
+	return data;
+}
+
+async function sendChatStream(
+	client: ClientData,
+	payload: Record< string, string | null >,
+	onDelta: ( text: string ) => void
+): Promise< ChatResponse > {
+	const response = await fetch( `${ client.restUrl }/chat/stream`, {
+		method: 'POST',
+		headers: {
+			...chatHeaders( client.nonce ),
+			Accept: 'text/event-stream',
+		},
+		credentials: 'same-origin',
+		body: JSON.stringify( payload ),
+	} );
+	const type = response.headers.get( 'content-type' ) ?? '';
+	if (
+		! response.ok ||
+		! response.body ||
+		! type.includes( 'text/event-stream' )
+	) {
+		throw new Error( 'stream unavailable' );
+	}
+
+	const reader = response.body.getReader();
+	const decoder = new TextDecoder();
+	let buffer = '';
+	let donePayload: ChatResponse | null = null;
+
+	while ( true ) {
+		const { value, done } = await reader.read();
+		if ( done ) {
+			break;
+		}
+		buffer += decoder.decode( value, { stream: true } );
+		const parsed = parseSseChunk( buffer );
+		buffer = parsed.rest;
+		for ( const item of parsed.events ) {
+			let body: {
+				text?: string;
+				message?: string;
+				thread_uuid?: string;
+				reply?: string;
+				sources?: Source[];
+				flagged?: boolean;
+			} = {};
+			try {
+				body = JSON.parse( item.data ) as typeof body;
+			} catch {
+				continue;
+			}
+			if ( item.event === 'delta' && body.text ) {
+				onDelta( body.text );
+			} else if ( item.event === 'error' ) {
+				throw new Error( body.message || 'Stream failed' );
+			} else if ( item.event === 'done' && body.reply !== undefined ) {
+				donePayload = {
+					thread_uuid: body.thread_uuid ?? '',
+					reply: body.reply,
+					sources: body.sources ?? [],
+					flagged: body.flagged,
+				};
+			}
+		}
+	}
+
+	if ( ! donePayload ) {
+		throw new Error( 'stream incomplete' );
+	}
+	return donePayload;
+}
+
 function stripCitations( text: string ): string {
 	return text
 		.replace( /\s*\[(?:\d+\s*(?:[,;]\s*\d+\s*)*)\]/g, '' )
@@ -351,26 +477,35 @@ function ChatPanel( {
 		] );
 		setInput( '' );
 
+		const assistantId = uid();
+		setMessages( ( c ) => [
+			...c,
+			{ id: assistantId, role: 'assistant', content: '' },
+		] );
+
+		const payload = {
+			message: trimmed,
+			thread: threadUuid,
+			origin_url: window.location.href,
+		};
+
 		try {
-			const response = await fetch( `${ client.restUrl }/chat`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				credentials: 'same-origin',
-				body: JSON.stringify( {
-					message: trimmed,
-					thread: threadUuid,
-					origin_url: window.location.href,
-				} ),
-			} );
-			const raw = await response.text();
-			const data = raw
-				? ( JSON.parse( raw ) as ChatResponse | { message?: string } )
-				: null;
-			if ( ! response.ok || ! data || ! ( 'reply' in data ) ) {
-				throw new Error(
-					( data && 'message' in data && data.message ) ||
-						`Request failed (${ response.status })`
-				);
+			let data: ChatResponse;
+			try {
+				data = await sendChatStream( client, payload, ( text ) => {
+					setMessages( ( current ) =>
+						current.map( ( item ) =>
+							item.id === assistantId
+								? {
+										...item,
+										content: item.content + text,
+								  }
+								: item
+						)
+					);
+				} );
+			} catch {
+				data = await sendChatJson( client, payload );
 			}
 			if ( data.thread_uuid ) {
 				setThreadUuid( data.thread_uuid );
@@ -380,27 +515,33 @@ function ChatPanel( {
 					/* ignore */
 				}
 			}
-			setMessages( ( c ) => [
-				...c,
-				{
-					id: uid(),
-					role: 'assistant',
-					content: stripCitations(
-						data.reply || client.fallbackMessage
-					),
-					sources: data.sources ?? [],
-				},
-			] );
+			setMessages( ( current ) =>
+				current.map( ( item ) =>
+					item.id === assistantId
+						? {
+								...item,
+								content: stripCitations(
+									data.reply ||
+										item.content ||
+										client.fallbackMessage
+								),
+								sources: data.sources ?? [],
+						  }
+						: item
+				)
+			);
 		} catch ( e ) {
 			setError( e instanceof Error ? e.message : String( e ) );
-			setMessages( ( c ) => [
-				...c,
-				{
-					id: uid(),
-					role: 'assistant',
-					content: client.fallbackMessage,
-				},
-			] );
+			setMessages( ( current ) =>
+				current.map( ( item ) =>
+					item.id === assistantId
+						? {
+								...item,
+								content: item.content || client.fallbackMessage,
+						  }
+						: item
+				)
+			);
 		} finally {
 			setBusy( false );
 		}
@@ -462,11 +603,14 @@ function ChatPanel( {
 						) }
 					</div>
 				) ) }
-				{ busy && (
-					<div className="msg is-assistant is-typing">
-						<div className="bubble">{ client.strings.typing }</div>
-					</div>
-				) }
+				{ busy &&
+					messages[ messages.length - 1 ]?.role !== 'assistant' && (
+						<div className="msg is-assistant is-typing">
+							<div className="bubble">
+								{ client.strings.typing }
+							</div>
+						</div>
+					) }
 				{ error && <div className="error">{ error }</div> }
 
 				{ showContactCta && (

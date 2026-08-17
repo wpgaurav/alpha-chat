@@ -1,10 +1,10 @@
 === Alpha Chat ===
 Contributors: alphachat
-Tags: ai, chatbot, openai, anthropic, rag, gpt, claude
+Tags: ai, chatbot, openai, anthropic, rag, gpt, claude, grok, deepseek
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.1.7
+Stable tag: 0.1.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,7 +25,7 @@ Alpha Chat turns your WordPress content into a conversational interface. It spli
 
 = Features =
 
-* OpenAI (GPT-5.4, GPT-5.4 mini, GPT-4.1) and Anthropic (Claude Opus 4.7, Sonnet 4.6, Haiku 4.5) chat providers.
+* OpenAI (GPT-5.6 Luna, Terra, Sol), Anthropic (Claude Opus 4.7, Sonnet 4.6, Haiku 4.5), xAI (Grok 4.6 / 4.5), and DeepSeek (V4 Flash / Pro) chat providers. Embeddings are independent: OpenAI or Voyage AI. Moderation is optional and only uses OpenAI when that key is set.
 * OpenAI text-embedding-3-small / -large for embeddings.
 * Quick presets: Fast / Balanced / Quality — sets model, temperature, and response length in one click.
 * Site-database vector store (default) with pluggable `VectorStore` interface.
@@ -50,7 +50,7 @@ Alpha Chat turns your WordPress content into a conversational interface. It spli
 
 1. Upload `alpha-chat.zip` via **Plugins → Add New → Upload Plugin**, or copy the plugin folder to `/wp-content/plugins/alpha-chat`.
 2. Activate it from the Plugins screen.
-3. Go to **Alpha Chat → Settings** and paste your OpenAI API key (required for embeddings + moderation). Add an Anthropic key only if you pick Claude.
+3. Go to **Alpha Chat → Settings**. Pick chat and embedding providers independently. Add an OpenAI key only if you use OpenAI for chat, embeddings, or moderation. Voyage can embed without OpenAI.
 4. Open the **Knowledge Base** tab, filter *Not indexed*, and click **Index remaining** to ingest your site.
 5. Drop the **Alpha Chat** block or `[alpha_chat]` on any page, or enable **Behavior → Show floating launcher site-wide**.
 6. Open **Alpha Chat → License** and activate the free lifetime key from your FluentCart receipt or account to receive protected updates.
@@ -65,9 +65,9 @@ Only to the provider you configure. When you add a post to the knowledge base, i
 
 Yes. The default store is a MySQL table with cosine similarity computed in PHP. Comfortable up to tens of thousands of chunks on typical hosts. If you outgrow it, implement the `VectorStore` interface and swap via the `alpha_chat_vector_store` filter.
 
-= Can I use Claude instead of OpenAI? =
+= Can I use Claude, Grok, or DeepSeek instead of OpenAI? =
 
-Yes. Settings → Provider → Anthropic, pick a model. You still need an OpenAI key because embeddings and moderation run on OpenAI.
+Yes. Settings → Provider, pick Anthropic, xAI (Grok), or DeepSeek, then add that provider's API key. Embeddings are a separate setting: keep OpenAI or switch to Voyage AI. Turn moderation off if you do not have an OpenAI key. Claude, Grok, and DeepSeek do not offer embedding or moderation APIs.
 
 = Will it slow my site down? =
 
@@ -103,6 +103,11 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.1.8 =
+* Added GPT-5.6, Grok, DeepSeek chat and Voyage embeddings. OpenAI is no longer required unless you use it for chat, embeddings, or moderation.
+* Added streaming replies, hybrid retrieval, tighter source cards, and a mapped Thinking control (default low).
+* Chat endpoints now require the frontend nonce.
 
 = 0.1.7 =
 * Added a free lifetime FluentCart license screen.

@@ -18,9 +18,10 @@ interface VectorStore {
 	/**
 	 * Search for nearest neighbours.
 	 *
-	 * @param list<float> $query
+	 * @param list<float>          $query
+	 * @param array<string, mixed> $options Optional `text_query`, `prefer_source_id`.
 	 *
 	 * @return list<array{id: string, score: float, metadata: array<string, mixed>}>
 	 */
-	public function search( array $query, int $limit = 5, float $threshold = 0.0 ): array;
+	public function search( array $query, int $limit = 5, float $threshold = 0.0, string $embedding_model = '', array $options = [] ): array;
 }

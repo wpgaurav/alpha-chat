@@ -1,26 +1,26 @@
 <?php
 declare(strict_types=1);
 
-namespace AlphaChat\Providers\OpenAI;
+namespace AlphaChat\Providers\DeepSeek;
 
 use AlphaChat\Http\HttpClient;
 use AlphaChat\Providers\Contracts\LLMProvider;
 use AlphaChat\Providers\OpenAICompatible\ChatCompletionsClient;
 
-final class OpenAIChat implements LLMProvider {
+final class DeepSeekChat implements LLMProvider {
 
-	private const ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+	private const ENDPOINT = 'https://api.deepseek.com/chat/completions';
 
 	private readonly ChatCompletionsClient $client;
 
 	public function __construct(
 		HttpClient $http,
 		string $api_key,
-		string $model = 'gpt-5.6-luna',
+		string $model = 'deepseek-v4-flash',
 	) {
 		$this->client = new ChatCompletionsClient(
 			$http,
-			'openai',
+			'deepseek',
 			self::ENDPOINT,
 			$api_key,
 			$model,

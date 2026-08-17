@@ -37,7 +37,13 @@ Public hook surface for extensions. All hook names are prefixed with
 | --- | --- | --- |
 | `alpha_chat_llm_provider` | Swap in a custom chat provider. | `AlphaChat\Providers\Contracts\LLMProvider` |
 | `alpha_chat_embedding_provider` | Swap in a custom embedding provider. | `AlphaChat\Providers\Contracts\EmbeddingProvider` |
+| `alpha_chat_moderation_provider` | Swap in a custom moderation provider. | `AlphaChat\Providers\Contracts\ModerationProvider` |
 | `alpha_chat_vector_store` | Swap in a custom vector store. | `AlphaChat\Providers\Contracts\VectorStore` |
+| `alpha_chat_model_catalog` | Replace or extend the admin model catalog (providers, models, presets, secret keys). | `array $catalog` |
+| `alpha_chat_http_timeout` | HTTP timeout in seconds for provider requests. Default `60`. | `int $timeout` |
+| `alpha_chat_retrieval_candidates` | Replace or trim chunk rows before cosine ranking. | `array $rows`, `string $text_query`, `string $embedding_model` |
+
+Public chat routes: `POST /alpha-chat/v1/chat` (JSON) and `POST /alpha-chat/v1/chat/stream` (SSE). Both require the `alpha_chat_frontend` nonce in `X-WP-Nonce`. Some hosts buffer SSE; the widget retries on JSON `/chat`.
 
 ### Retrieval and prompting
 

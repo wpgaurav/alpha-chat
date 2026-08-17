@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-08-17
+
+### Added
+- Streaming chat at `POST /alpha-chat/v1/chat/stream` (SSE). The widget streams tokens and falls back to JSON `/chat` if the host buffers the stream.
+- Hybrid retrieval: FULLTEXT candidate cut, follow-up query rewrite, and a score boost for the current page’s chunks.
+- Source cards now show at most three posts the reply actually used. Admin metadata still stores the full `retrieved` set.
+- Mapped Thinking control (`off` / `low` / `medium` / `high`) for OpenAI, Grok, and DeepSeek. Default and all presets are `low`. xhigh/max are not sent.
+- Voyage AI as an independent embedding provider (`voyage-4-lite`, `voyage-4`, `voyage-4-large`). Chat, embeddings, and moderation are now separate settings.
+- `alpha_chat_moderation_provider` filter and a no-op moderator when no OpenAI key is set.
+- xAI (Grok) and DeepSeek as chat-only providers, using the same Chat Completions client as OpenAI.
+- PHP `ModelCatalog` as the admin source of truth. `GET /settings` now returns `{ settings, stats, catalog }`.
+- Settings secrets `xai_api_key` and `deepseek_api_key`.
+- `alpha_chat_model_catalog` and `alpha_chat_http_timeout` filters.
+
+### Changed
+- OpenAI chat models are now GPT-5.6 Luna / Terra / Sol. New installs default to `gpt-5.6-luna`.
+- Retired OpenAI IDs (`gpt-5.4-mini`, `gpt-5.4`, `gpt-4.1`) remap on settings read so the dropdown is never blank; the new ID is persisted on Save.
+- Provider HTTP timeout raised from 30s to 60s.
+- OpenAI is no longer required for embeddings or chat. Retrieval search only uses chunks from the active embedding model.
+- Public `/chat` and `/chat/stream` require the `alpha_chat_frontend` nonce the widget already localizes.
+
 ## [0.1.7] - 2026-08-01
 
 ### Added

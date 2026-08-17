@@ -7,11 +7,16 @@ use AlphaChat\Http\HttpClient;
 use AlphaChat\Providers\Anthropic\AnthropicChat;
 use AlphaChat\Providers\Contracts\EmbeddingProvider;
 use AlphaChat\Providers\Contracts\LLMProvider;
+use AlphaChat\Providers\Contracts\ModerationProvider;
 use AlphaChat\Providers\Contracts\VectorStore;
+use AlphaChat\Providers\DeepSeek\DeepSeekChat;
+use AlphaChat\Providers\NullModeration;
 use AlphaChat\Providers\OpenAI\OpenAIChat;
 use AlphaChat\Providers\OpenAI\OpenAIEmbeddings;
 use AlphaChat\Providers\OpenAI\OpenAIModeration;
 use AlphaChat\Providers\VectorStore\DatabaseVectorStore;
+use AlphaChat\Providers\Voyage\VoyageEmbeddings;
+use AlphaChat\Providers\XAI\GrokChat;
 use AlphaChat\Settings\SettingsRepository;
 use RuntimeException;
 
@@ -31,10 +36,20 @@ final class ProviderFactory {
 				$this->require_secret( 'anthropic_api_key', 'Anthropic' ),
 				(string) $this->settings->get( 'chat_model', 'claude-sonnet-4-6' ),
 			),
+			'xai' => new GrokChat(
+				$this->http,
+				$this->require_secret( 'xai_api_key', 'xAI' ),
+				(string) $this->settings->get( 'chat_model', 'grok-4.6' ),
+			),
+			'deepseek' => new DeepSeekChat(
+				$this->http,
+				$this->require_secret( 'deepseek_api_key', 'DeepSeek' ),
+				(string) $this->settings->get( 'chat_model', 'deepseek-v4-flash' ),
+			),
 			default => new OpenAIChat(
 				$this->http,
 				$this->require_secret( 'openai_api_key', 'OpenAI' ),
-				(string) $this->settings->get( 'chat_model', 'gpt-5.4-mini' ),
+				(string) $this->settings->get( 'chat_model', 'gpt-5.6-luna' ),
 			),
 		};
 
@@ -47,11 +62,20 @@ final class ProviderFactory {
 	}
 
 	public function embeddings(): EmbeddingProvider {
-		$embeddings = new OpenAIEmbeddings(
-			$this->http,
-			$this->require_secret( 'openai_api_key', 'OpenAI' ),
-			(string) $this->settings->get( 'embedding_model', 'text-embedding-3-small' ),
-		);
+		$provider = (string) $this->settings->get( 'embedding_provider', 'openai' );
+
+		$embeddings = match ( $provider ) {
+			'voyage' => new VoyageEmbeddings(
+				$this->http,
+				$this->require_secret( 'voyage_api_key', 'Voyage' ),
+				(string) $this->settings->get( 'embedding_model', 'voyage-4-lite' ),
+			),
+			default => new OpenAIEmbeddings(
+				$this->http,
+				$this->require_secret( 'openai_api_key', 'OpenAI' ),
+				(string) $this->settings->get( 'embedding_model', 'text-embedding-3-small' ),
+			),
+		};
 
 		/**
 		 * Filter the embedding provider.
@@ -61,11 +85,19 @@ final class ProviderFactory {
 		return apply_filters( 'alpha_chat_embedding_provider', $embeddings );
 	}
 
-	public function moderation(): OpenAIModeration {
-		return new OpenAIModeration(
-			$this->http,
-			$this->require_secret( 'openai_api_key', 'OpenAI' ),
-		);
+	public function moderation(): ModerationProvider {
+		$key = (string) $this->settings->get( 'openai_api_key', '' );
+
+		$moderation = '' === $key
+			? new NullModeration()
+			: new OpenAIModeration( $this->http, $key );
+
+		/**
+		 * Filter the moderation provider.
+		 *
+		 * @param ModerationProvider $moderation Default provider.
+		 */
+		return apply_filters( 'alpha_chat_moderation_provider', $moderation );
 	}
 
 	public function vector_store(): VectorStore {

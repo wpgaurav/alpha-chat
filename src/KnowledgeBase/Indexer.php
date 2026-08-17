@@ -67,7 +67,7 @@ final class Indexer {
 		}
 
 		try {
-			$embeddings = $this->providers->embeddings()->embed( $chunks );
+			$embeddings = $this->providers->embeddings()->embed( $chunks, [ 'input_type' => 'document' ] );
 		} catch ( Throwable $e ) {
 			$this->logger->error( 'Embedding generation failed', [ 'post_id' => $post_id, 'error' => $e->getMessage() ] );
 			update_post_meta( $post_id, '_alpha_chat_index_error', $e->getMessage() );
