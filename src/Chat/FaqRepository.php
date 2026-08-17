@@ -86,6 +86,13 @@ final class FaqRepository {
 		return (bool) $wpdb->update( Schema::faqs_table(), $update, [ 'id' => $id ], $format, [ '%d' ] );
 	}
 
+	public function next_sort_order(): int {
+		global $wpdb;
+		$max = $wpdb->get_var( 'SELECT MAX(sort_order) FROM ' . esc_sql( Schema::faqs_table() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
+
+		return (int) $max + 1;
+	}
+
 	public function delete( int $id ): bool {
 		global $wpdb;
 		return (bool) $wpdb->delete( Schema::faqs_table(), [ 'id' => $id ], [ '%d' ] );

@@ -139,19 +139,20 @@ final class HttpClient {
 	 * @throws HttpException
 	 */
 	public function request( string $method, string $url, array $headers, array|string|null $body ): array {
+		$defaults = [
+			'Accept'     => 'application/json',
+			'User-Agent' => 'AlphaChat/' . ALPHA_CHAT_VERSION . '; ' . home_url(),
+		];
+		if ( null !== $body ) {
+			$defaults['Content-Type'] = 'application/json';
+		}
+
 		$args = [
 			'method'      => $method,
 			'timeout'     => $this->timeout,
 			'redirection' => 3,
 			'httpversion' => '1.1',
-			'headers'     => array_merge(
-				[
-					'Accept'       => 'application/json',
-					'Content-Type' => 'application/json',
-					'User-Agent'   => 'AlphaChat/' . ALPHA_CHAT_VERSION . '; ' . home_url(),
-				],
-				$headers
-			),
+			'headers'     => array_merge( $defaults, $headers ),
 		];
 
 		if ( null !== $body ) {

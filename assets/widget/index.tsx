@@ -486,7 +486,8 @@ function ChatPanel( {
 		const payload = {
 			message: trimmed,
 			thread: threadUuid,
-			origin_url: window.location.href,
+			origin_url: window.location.href.split( '#' )[ 0 ],
+			origin_title: document.title,
 		};
 
 		try {

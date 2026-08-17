@@ -29,9 +29,13 @@ final class ChatController {
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_text_field',
 			],
-			'origin_url' => [
+			'origin_url'   => [
 				'type'              => 'string',
 				'sanitize_callback' => 'esc_url_raw',
+			],
+			'origin_title' => [
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
 			],
 		];
 
@@ -86,7 +90,7 @@ final class ChatController {
 		self::send_sse_headers();
 
 		try {
-			[ $message, $thread, $session, $user, $origin ] = $this->chat_args( $request );
+			[ $message, $thread, $session, $user, $origin, $origin_title ] = $this->chat_args( $request );
 			$result = $this->chat->send_streaming(
 				$message,
 				$thread,
@@ -95,7 +99,8 @@ final class ChatController {
 				$origin,
 				static function ( string $delta ): void {
 					self::sse_event( 'delta', [ 'text' => $delta ] );
-				}
+				},
+				$origin_title
 			);
 			self::sse_event( 'done', $result );
 		} catch ( Throwable $e ) {
@@ -115,7 +120,9 @@ final class ChatController {
 	}
 
 	public static function verify_frontend_nonce( string $nonce ): bool {
-		return (bool) wp_verify_nonce( $nonce, 'alpha_chat_frontend' );
+		// WordPress REST cookie auth already requires a wp_rest nonce in X-WP-Nonce.
+		// A custom action here caused "Cookie check failed" before this callback ran.
+		return (bool) wp_verify_nonce( $nonce, 'wp_rest' );
 	}
 
 	private function guard( WP_REST_Request $request ): WP_Error|null {
@@ -132,16 +139,17 @@ final class ChatController {
 	}
 
 	/**
-	 * @return array{0: string, 1: ?string, 2: string, 3: ?int, 4: string}
+	 * @return array{0: string, 1: ?string, 2: string, 3: ?int, 4: string, 5: string}
 	 */
 	private function chat_args( WP_REST_Request $request ): array {
 		$session_hash = self::session_hash( $request );
 
-		$message    = (string) $request->get_param( 'message' );
-		$thread     = (string) $request->get_param( 'thread' );
-		$thread     = '' === $thread ? null : $thread;
-		$user_id    = get_current_user_id();
-		$origin_url = mb_substr( (string) $request->get_param( 'origin_url' ), 0, 500 );
+		$message      = (string) $request->get_param( 'message' );
+		$thread       = (string) $request->get_param( 'thread' );
+		$thread       = '' === $thread ? null : $thread;
+		$user_id      = get_current_user_id();
+		$origin_url   = mb_substr( (string) $request->get_param( 'origin_url' ), 0, 500 );
+		$origin_title = mb_substr( (string) $request->get_param( 'origin_title' ), 0, 200 );
 
 		return [
 			$message,
@@ -149,6 +157,7 @@ final class ChatController {
 			$session_hash,
 			$user_id > 0 ? $user_id : null,
 			$origin_url,
+			$origin_title,
 		];
 	}
 

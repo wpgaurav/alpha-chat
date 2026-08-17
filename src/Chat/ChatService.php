@@ -26,8 +26,8 @@ final class ChatService {
 	 * @return array{thread_uuid: string, reply: string, flagged?: bool, sources: list<array<string, mixed>>}
 	 * @throws RuntimeException When a message cannot be processed.
 	 */
-	public function send( string $message, ?string $thread_uuid, string $session_hash, ?int $user_id = null, string $origin_url = '' ): array {
-		$prepared = $this->prepare( $message, $thread_uuid, $session_hash, $user_id, $origin_url );
+	public function send( string $message, ?string $thread_uuid, string $session_hash, ?int $user_id = null, string $origin_url = '', string $origin_title = '' ): array {
+		$prepared = $this->prepare( $message, $thread_uuid, $session_hash, $user_id, $origin_url, $origin_title );
 		if ( isset( $prepared['result'] ) ) {
 			return $prepared['result'];
 		}
@@ -51,8 +51,8 @@ final class ChatService {
 	 *
 	 * @return array{thread_uuid: string, reply: string, flagged?: bool, sources: list<array<string, mixed>>}
 	 */
-	public function send_streaming( string $message, ?string $thread_uuid, string $session_hash, ?int $user_id, string $origin_url, callable $on_delta ): array {
-		$prepared = $this->prepare( $message, $thread_uuid, $session_hash, $user_id, $origin_url );
+	public function send_streaming( string $message, ?string $thread_uuid, string $session_hash, ?int $user_id, string $origin_url, callable $on_delta, string $origin_title = '' ): array {
+		$prepared = $this->prepare( $message, $thread_uuid, $session_hash, $user_id, $origin_url, $origin_title );
 		if ( isset( $prepared['result'] ) ) {
 			return $prepared['result'];
 		}
@@ -74,7 +74,7 @@ final class ChatService {
 	/**
 	 * @return array{result?: array{thread_uuid: string, reply: string, flagged?: bool, sources: list<array<string, mixed>>}, prompt?: list<array{role: string, content: string}>, options?: array<string, mixed>, thread?: array<string, mixed>, message?: string, chunks?: list<array{id: string, score: float, metadata: array<string, mixed>}>}
 	 */
-	private function prepare( string $message, ?string $thread_uuid, string $session_hash, ?int $user_id, string $origin_url ): array {
+	private function prepare( string $message, ?string $thread_uuid, string $session_hash, ?int $user_id, string $origin_url, string $origin_title = '' ): array {
 		$message = trim( $message );
 		if ( '' === $message ) {
 			throw new RuntimeException( 'Empty message.' );
@@ -107,8 +107,12 @@ final class ChatService {
 		$thread_id = (int) $thread['id'];
 		$this->messages->append( $thread_id, 'user', $message, $this->counter->count( $message ) );
 
-		$history = $this->messages->for_thread( $thread_id, 12 );
-		$embed_text = self::retrieval_query( $message, $history );
+		$history      = $this->messages->for_thread( $thread_id, 12 );
+		$current_page = PageContext::resolve( $origin_url, $origin_title );
+		$embed_text   = self::retrieval_query( $message, $history );
+		if ( null !== $current_page && '' !== $current_page['title'] ) {
+			$embed_text = trim( $current_page['title'] . ' — ' . $embed_text );
+		}
 
 		try {
 			$query_vectors = $this->providers->embeddings()->embed( [ $embed_text ], [ 'input_type' => 'query' ] );
@@ -122,9 +126,8 @@ final class ChatService {
 			throw new RuntimeException( 'Could not produce embeddings for the query.' );
 		}
 
-		$max_chunks   = (int) $this->settings->get( 'max_context_chunks', 5 );
-		$threshold    = (float) $this->settings->get( 'similarity_score_threshold', 0.4 );
-		$current_page = self::resolve_current_page( $origin_url );
+		$max_chunks = (int) $this->settings->get( 'max_context_chunks', 5 );
+		$threshold  = (float) $this->settings->get( 'similarity_score_threshold', 0.4 );
 
 		$chunks = $this->providers->vector_store()->search(
 			$query_vector,
@@ -133,7 +136,7 @@ final class ChatService {
 			$this->providers->embeddings()->model(),
 			[
 				'text_query'        => $embed_text,
-				'prefer_source_id'  => (int) ( $current_page['post_id'] ?? 0 ),
+				'prefer_source_id' => null !== $current_page ? $current_page['post_id'] : 0,
 			]
 		);
 
@@ -291,55 +294,6 @@ final class ChatService {
 		}
 
 		return $out;
-	}
-
-	/**
-	 * Resolve the user's current page URL to a lightweight title/content block
-	 * the LLM can reference for "this page", "explain this", etc.
-	 *
-	 * @return array{url: string, title: string, content: string, post_id: int}|null
-	 */
-	private static function resolve_current_page( string $origin_url ): ?array {
-		$origin_url = trim( $origin_url );
-		if ( '' === $origin_url ) {
-			return null;
-		}
-
-		$post_id = (int) url_to_postid( $origin_url );
-		if ( $post_id <= 0 ) {
-			return [
-				'url'     => $origin_url,
-				'title'   => '',
-				'content' => '',
-				'post_id' => 0,
-			];
-		}
-
-		$post = get_post( $post_id );
-		if ( null === $post || 'publish' !== $post->post_status ) {
-			return [
-				'url'     => $origin_url,
-				'title'   => '',
-				'content' => '',
-				'post_id' => 0,
-			];
-		}
-
-		$raw     = (string) $post->post_content;
-		$raw     = strip_shortcodes( $raw );
-		$raw     = wp_strip_all_tags( $raw );
-		$raw     = preg_replace( '/\s+/u', ' ', $raw ) ?? $raw;
-		$content = trim( $raw );
-		if ( mb_strlen( $content ) > 4000 ) {
-			$content = mb_substr( $content, 0, 4000 ) . '…';
-		}
-
-		return [
-			'url'     => (string) get_permalink( $post_id ),
-			'title'   => (string) get_the_title( $post_id ),
-			'content' => $content,
-			'post_id' => $post_id,
-		];
 	}
 
 	/**

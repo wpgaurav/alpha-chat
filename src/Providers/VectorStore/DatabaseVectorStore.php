@@ -196,6 +196,10 @@ final class DatabaseVectorStore implements VectorStore {
 	 */
 	private function fulltext_rows( string $text_query, string $embedding_model, int $limit ): array {
 		global $wpdb;
+		if ( ! self::supports_fulltext() ) {
+			return [];
+		}
+
 		$table = Schema::chunks_table();
 
 		$sql = 'SELECT id, source_type, source_id, chunk_index, content, token_count, embedding FROM ' . esc_sql( $table ) . " WHERE status = 'ready' AND embedding IS NOT NULL";
@@ -208,8 +212,12 @@ final class DatabaseVectorStore implements VectorStore {
 		$args[] = $text_query;
 		$args[] = $limit;
 
+		$show_errors = $wpdb->hide_errors();
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name is escaped; remaining values are bound.
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+		if ( $show_errors ) {
+			$wpdb->show_errors();
+		}
 		if ( ! is_array( $rows ) || '' !== (string) $wpdb->last_error ) {
 			return [];
 		}
@@ -297,5 +305,18 @@ final class DatabaseVectorStore implements VectorStore {
 
 	public static function build_id( string $source_type, int $source_id, int $chunk_index ): string {
 		return sprintf( '%s:%d:%d', $source_type, $source_id, $chunk_index );
+	}
+
+	private static function supports_fulltext(): bool {
+		static $supported = null;
+		if ( null !== $supported ) {
+			return $supported;
+		}
+
+		global $wpdb;
+		$driver = strtolower( $wpdb::class );
+		$supported = ! str_contains( $driver, 'sqlite' );
+
+		return $supported;
 	}
 }

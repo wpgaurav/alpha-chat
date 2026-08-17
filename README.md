@@ -33,6 +33,7 @@ AI-powered chatbot for WordPress. Indexes your site content, answers visitor que
 
 - **Dashboard** — activity metrics + 14-day sparkline.
 - **Knowledge Base** — list every public post type; filter by type and by indexed/not-indexed; select rows to batch index or remove; "Index remaining" queues all unindexed items via Action Scheduler.
+- **Q&A** — curated pairs always injected into the prompt. Paste page URLs to import from the WordPress REST API, FAQ schema, accordions, or question headings.
 - **Conversations** — thread history with per-message tokens + usage + sources; CSV export.
 - **Contacts** — submissions from the in-chat contact form.
 - **Settings** — provider, model, thinking level (off/low/medium/high, mapped per vendor), preset (Fast/Balanced/Quality), system prompt, welcome/fallback copy, launcher position (left/center/right), nudge text, brand name, contact form, widget colors (accent / panel / user bubble / assistant bubble), advanced tuning (temperature, top_p, max response tokens, similarity threshold, max context chunks).

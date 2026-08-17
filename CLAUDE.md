@@ -110,7 +110,8 @@ Namespace: `alpha-chat/v1`. Routes:
 - `GET /POST /settings` — settings read/write. `manage_options` capability + `wp-nonce`. Secrets are masked on read; empty or bullet-only values on write preserve the stored secret.
 - `GET /knowledge-base`, `POST /knowledge-base/{id}`, `DELETE /knowledge-base/{id}`, `POST /knowledge-base/reindex-all`.
 - `GET /threads`, `GET /threads/{id}`, `DELETE /threads/{id}`, `GET /threads/chart`, `GET /threads/export` (CSV).
-- `POST /chat` — public endpoint, but requires the `alpha_chat_frontend` nonce.
+- `GET /POST /faqs`, `PUT /DELETE /faqs/{id}`, `POST /faqs/preview`, `POST /faqs/import`.
+- `POST /chat` and `POST /chat/stream` — public endpoints. Require a `wp_rest` nonce in `X-WP-Nonce`. Send `origin_url` and `origin_title` so the current page is injected into the prompt.
 
 Add new routes by hooking `alpha_chat_register_rest_routes` (fired with the namespace and container).
 

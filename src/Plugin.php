@@ -9,6 +9,7 @@ use AlphaChat\Admin\PostRowActions;
 use AlphaChat\Block\BlockRegistrar;
 use AlphaChat\Chat\ChatService;
 use AlphaChat\Chat\ContactRepository;
+use AlphaChat\Chat\FaqImporter;
 use AlphaChat\Chat\FaqRepository;
 use AlphaChat\Chat\MessageRepository;
 use AlphaChat\Chat\ThreadRepository;
@@ -105,6 +106,13 @@ final class Plugin {
 		$c->set( MessageRepository::class, static fn () => new MessageRepository() );
 		$c->set( ContactRepository::class, static fn () => new ContactRepository() );
 		$c->set( FaqRepository::class, static fn () => new FaqRepository() );
+		$c->set(
+			FaqImporter::class,
+			static fn ( Container $c ) => new FaqImporter(
+				$c->get( HttpClient::class ),
+				$c->get( FaqRepository::class ),
+			),
+		);
 
 		$c->set(
 			Indexer::class,
@@ -205,7 +213,10 @@ final class Plugin {
 
 		$c->set(
 			FaqController::class,
-			static fn ( Container $c ) => new FaqController( $c->get( FaqRepository::class ) ),
+			static fn ( Container $c ) => new FaqController(
+				$c->get( FaqRepository::class ),
+				$c->get( FaqImporter::class ),
+			),
 		);
 
 		$c->set(

@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude, grok, deepseek
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.1.8
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -103,6 +103,12 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.2.0 =
+* Import curated Q&A from page URLs via the WordPress REST API, FAQ schema, accordions, and question headings.
+* Chat now sends the current page URL and title on every message and resolves homepage / pretty permalinks more reliably.
+* Fixed "Cookie check failed" on public chat by using a standard WordPress REST nonce.
+* Loosened settings spacing and section layout in the admin.
 
 = 0.1.8 =
 * Added GPT-5.6, Grok, DeepSeek chat and Voyage embeddings. OpenAI is no longer required unless you use it for chat, embeddings, or moderation.

@@ -3,14 +3,19 @@ declare(strict_types=1);
 
 namespace AlphaChat\REST;
 
+use AlphaChat\Chat\FaqImporter;
 use AlphaChat\Chat\FaqRepository;
+use AlphaChat\Http\HttpException;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
 final class FaqController {
 
-	public function __construct( private readonly FaqRepository $faqs ) {}
+	public function __construct(
+		private readonly FaqRepository $faqs,
+		private readonly FaqImporter $importer,
+	) {}
 
 	public function register( string $namespace ): void {
 		register_rest_route(
@@ -62,6 +67,39 @@ final class FaqController {
 				],
 			]
 		);
+
+		register_rest_route(
+			$namespace,
+			'/faqs/preview',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'preview' ],
+				'permission_callback' => [ SettingsController::class, 'can_manage' ],
+				'args'                => [
+					'urls' => [
+						'type'     => 'array',
+						'required' => true,
+						'items'    => [ 'type' => 'string' ],
+					],
+				],
+			]
+		);
+
+		register_rest_route(
+			$namespace,
+			'/faqs/import',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'import' ],
+				'permission_callback' => [ SettingsController::class, 'can_manage' ],
+				'args'                => [
+					'items' => [
+						'type'     => 'array',
+						'required' => true,
+					],
+				],
+			]
+		);
 	}
 
 	public function list(): WP_REST_Response {
@@ -109,5 +147,32 @@ final class FaqController {
 	public function delete( WP_REST_Request $request ): WP_REST_Response {
 		$id = (int) $request->get_param( 'id' );
 		return new WP_REST_Response( [ 'deleted' => $this->faqs->delete( $id ) ] );
+	}
+
+	public function preview( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$urls = $request->get_param( 'urls' );
+		if ( ! is_array( $urls ) || [] === $urls ) {
+			return new WP_Error( 'alpha_chat_invalid', __( 'Add at least one page URL.', 'alpha-chat' ), [ 'status' => 400 ] );
+		}
+
+		try {
+			$pages = $this->importer->preview( array_values( array_map( 'strval', $urls ) ) );
+		} catch ( HttpException $e ) {
+			return new WP_Error( 'alpha_chat_import_failed', $e->getMessage(), [ 'status' => 400 ] );
+		}
+
+		return new WP_REST_Response( [ 'pages' => $pages ] );
+	}
+
+	public function import( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$items = $request->get_param( 'items' );
+		if ( ! is_array( $items ) || [] === $items ) {
+			return new WP_Error( 'alpha_chat_invalid', __( 'Select at least one Q&A to import.', 'alpha-chat' ), [ 'status' => 400 ] );
+		}
+
+		/** @var list<array{question?: string, answer?: string}> $items */
+		$result = $this->importer->import( $items );
+
+		return new WP_REST_Response( $result );
 	}
 }

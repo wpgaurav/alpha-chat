@@ -43,13 +43,15 @@ Public hook surface for extensions. All hook names are prefixed with
 | `alpha_chat_http_timeout` | HTTP timeout in seconds for provider requests. Default `60`. | `int $timeout` |
 | `alpha_chat_retrieval_candidates` | Replace or trim chunk rows before cosine ranking. | `array $rows`, `string $text_query`, `string $embedding_model` |
 
-Public chat routes: `POST /alpha-chat/v1/chat` (JSON) and `POST /alpha-chat/v1/chat/stream` (SSE). Both require the `alpha_chat_frontend` nonce in `X-WP-Nonce`. Some hosts buffer SSE; the widget retries on JSON `/chat`.
+Public chat routes: `POST /alpha-chat/v1/chat` (JSON) and `POST /alpha-chat/v1/chat/stream` (SSE). Both require a `wp_rest` nonce in `X-WP-Nonce` (the same nonce WordPress cookie authentication checks). Some hosts buffer SSE; the widget retries on JSON `/chat`.
 
 ### Retrieval and prompting
 
 | Hook | Purpose | Args |
 | --- | --- | --- |
 | `alpha_chat_retrieved_chunks` | Modify the retrieved chunks before they are sent to the LLM. | `list<array> $chunks`, `string $message` |
+| `alpha_chat_page_context` | Modify the current-page URL/title/content injected into the prompt. | `array{url:string,title:string,content:string,post_id:int} $page`, `string $origin_url` |
+| `alpha_chat_faq_extracted` | Modify Q&A pairs extracted from an imported page. | `list<array{question:string,answer:string}> $pairs`, `array $page` |
 
 ### Settings
 

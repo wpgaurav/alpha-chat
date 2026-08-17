@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-17
+
+### Added
+- Curated Q&A can be imported from page URLs. The plugin prefers the local post, then the WordPress REST API (`/wp-json/wp/v2/pages` and `/posts`), then HTML. It reads FAQPage JSON-LD, Rank Math / Yoast FAQ blocks, `<details>`, definition lists, accordion markup, and headings that end with `?`.
+- `POST /faqs/preview` and `POST /faqs/import` (manage_options).
+- `alpha_chat_faq_extracted` and `alpha_chat_page_context` filters.
+
+### Changed
+- Public chat uses a `wp_rest` nonce so WordPress cookie authentication no longer returns "Cookie check failed".
+- Every chat request sends the current page URL and document title. Page resolution now handles fragments, `www`, the static front page, and path fallbacks. Retrieval prefers chunks from that post.
+- Settings and Q&A admin spacing is looser: larger section padding, field gaps, and a clearer import panel.
+
 ## [0.1.8] - 2026-08-17
 
 ### Added

@@ -23,7 +23,7 @@ final class ChatControllerTest extends TestCase {
 	public function test_verify_frontend_nonce_accepts_valid_nonce(): void {
 		Functions\expect( 'wp_verify_nonce' )
 			->once()
-			->with( 'good-nonce', 'alpha_chat_frontend' )
+			->with( 'good-nonce', 'wp_rest' )
 			->andReturn( 1 );
 
 		$this->assertTrue( ChatController::verify_frontend_nonce( 'good-nonce' ) );
@@ -32,7 +32,7 @@ final class ChatControllerTest extends TestCase {
 	public function test_verify_frontend_nonce_rejects_empty_nonce(): void {
 		Functions\expect( 'wp_verify_nonce' )
 			->once()
-			->with( '', 'alpha_chat_frontend' )
+			->with( '', 'wp_rest' )
 			->andReturn( false );
 
 		$this->assertFalse( ChatController::verify_frontend_nonce( '' ) );

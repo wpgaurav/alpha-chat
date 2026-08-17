@@ -27,13 +27,20 @@ async function api< T >( path: string, init: ApiInit = {} ): Promise< T > {
 	const response = await fetch( url.toString(), {
 		...init,
 		headers: {
-			'Content-Type': 'application/json',
 			'X-WP-Nonce': alphaChatAdmin.restNonce,
+			...( init.body !== undefined
+				? { 'Content-Type': 'application/json' }
+				: {} ),
 			...( init.headers ?? {} ),
 		},
 		body: init.body !== undefined ? JSON.stringify( init.body ) : undefined,
 		credentials: 'same-origin',
 	} );
+
+	const refreshed = response.headers.get( 'X-WP-Nonce' );
+	if ( refreshed ) {
+		alphaChatAdmin.restNonce = refreshed;
+	}
 
 	const raw = await response.text();
 	const data = raw ? JSON.parse( raw ) : null;
@@ -125,6 +132,20 @@ export type Faq = {
 	enabled: boolean;
 	created_at: string;
 	updated_at: string;
+};
+
+export type FaqImportPair = {
+	question: string;
+	answer: string;
+	duplicate: boolean;
+};
+
+export type FaqImportPage = {
+	url: string;
+	title: string;
+	source: string;
+	pairs: FaqImportPair[];
+	error?: string;
 };
 
 export type Contact = {
@@ -294,4 +315,17 @@ export const adminApi = {
 	) => api< { item: Faq } >( `/faqs/${ id }`, { method: 'PUT', body: data } ),
 	deleteFaq: ( id: number ) =>
 		api< { deleted: boolean } >( `/faqs/${ id }`, { method: 'DELETE' } ),
+	previewFaqImport: ( urls: string[] ) =>
+		api< { pages: FaqImportPage[] } >( '/faqs/preview', {
+			method: 'POST',
+			body: { urls },
+		} ),
+	importFaqs: ( items: { question: string; answer: string }[] ) =>
+		api< { created: number; skipped: number; items: Faq[] } >(
+			'/faqs/import',
+			{
+				method: 'POST',
+				body: { items },
+			}
+		),
 };

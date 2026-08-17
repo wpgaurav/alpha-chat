@@ -1,8 +1,9 @@
-import { useEffect, useState } from '@wordpress/element';
+import { useEffect, useMemo, useState } from '@wordpress/element';
 import {
 	Button,
 	Card,
 	CardBody,
+	CheckboxControl,
 	Notice,
 	Spinner,
 	TextControl,
@@ -11,13 +12,19 @@ import {
 } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 
-import { adminApi, Faq } from '../api';
+import { adminApi, Faq, FaqImportPage } from '../api';
 
 export function FaqsView() {
 	const [ items, setItems ] = useState< Faq[] >( [] );
 	const [ loading, setLoading ] = useState( true );
 	const [ busy, setBusy ] = useState( false );
 	const [ editing, setEditing ] = useState< Partial< Faq > | null >( null );
+	const [ importUrls, setImportUrls ] = useState( '' );
+	const [ importPages, setImportPages ] = useState< FaqImportPage[] >( [] );
+	const [ selectedKeys, setSelectedKeys ] = useState<
+		Record< string, boolean >
+	>( {} );
+	const [ fetching, setFetching ] = useState( false );
 	const [ notice, setNotice ] = useState< {
 		status: 'success' | 'error';
 		message: string;
@@ -42,6 +49,21 @@ export function FaqsView() {
 	useEffect( () => {
 		load();
 	}, [] );
+
+	const selectedItems = useMemo( () => {
+		const selected: { question: string; answer: string }[] = [];
+		importPages.forEach( ( page ) => {
+			page.pairs.forEach( ( pair ) => {
+				if ( selectedKeys[ `${ page.url }::${ pair.question }` ] ) {
+					selected.push( {
+						question: pair.question,
+						answer: pair.answer,
+					} );
+				}
+			} );
+		} );
+		return selected;
+	}, [ importPages, selectedKeys ] );
 
 	function startNew() {
 		setEditing( {
@@ -122,6 +144,106 @@ export function FaqsView() {
 		}
 	}
 
+	function pairKey( url: string, question: string ): string {
+		return `${ url }::${ question }`;
+	}
+
+	async function fetchImport() {
+		const urls = importUrls
+			.split( /\r?\n/ )
+			.map( ( line ) => line.trim() )
+			.filter( Boolean );
+		if ( ! urls.length ) {
+			setNotice( {
+				status: 'error',
+				message: __( 'Paste at least one page URL.', 'alpha-chat' ),
+			} );
+			return;
+		}
+
+		setFetching( true );
+		setNotice( null );
+		try {
+			const response = await adminApi.previewFaqImport( urls );
+			setImportPages( response.pages );
+			const next: Record< string, boolean > = {};
+			response.pages.forEach( ( page ) => {
+				page.pairs.forEach( ( pair ) => {
+					next[ pairKey( page.url, pair.question ) ] =
+						! pair.duplicate;
+				} );
+			} );
+			setSelectedKeys( next );
+			const found = response.pages.reduce(
+				( sum, page ) => sum + page.pairs.length,
+				0
+			);
+			setNotice( {
+				status: found ? 'success' : 'error',
+				message: found
+					? __(
+							'Fetched Q&A from the page APIs. Review and import the pairs you want.',
+							'alpha-chat'
+					  )
+					: __(
+							'No Q&A pairs were found on those pages.',
+							'alpha-chat'
+					  ),
+			} );
+		} catch ( error ) {
+			setNotice( {
+				status: 'error',
+				message:
+					error instanceof Error ? error.message : String( error ),
+			} );
+		} finally {
+			setFetching( false );
+		}
+	}
+
+	async function importSelected() {
+		if ( ! selectedItems.length ) {
+			setNotice( {
+				status: 'error',
+				message: __(
+					'Select at least one Q&A to import.',
+					'alpha-chat'
+				),
+			} );
+			return;
+		}
+		setBusy( true );
+		setNotice( null );
+		try {
+			const result = await adminApi.importFaqs( selectedItems );
+			setImportPages( [] );
+			setSelectedKeys( {} );
+			await load();
+			setNotice( {
+				status: 'success',
+				message: `${ result.created } ${ __(
+					'imported.',
+					'alpha-chat'
+				) }${
+					result.skipped
+						? ` ${ result.skipped } ${ __(
+								'skipped as duplicates.',
+								'alpha-chat'
+						  ) }`
+						: ''
+				}`,
+			} );
+		} catch ( error ) {
+			setNotice( {
+				status: 'error',
+				message:
+					error instanceof Error ? error.message : String( error ),
+			} );
+		} finally {
+			setBusy( false );
+		}
+	}
+
 	async function toggleEnabled( faq: Faq ) {
 		try {
 			await adminApi.updateFaq( faq.id, { enabled: ! faq.enabled } );
@@ -164,6 +286,98 @@ export function FaqsView() {
 							{ __( 'Add Q&A', 'alpha-chat' ) }
 						</Button>
 					</div>
+				</CardBody>
+			</Card>
+
+			<Card className="alpha-chat-section" size="small">
+				<CardBody className="alpha-chat-section__body">
+					<div>
+						<h2 className="alpha-chat-section__title">
+							{ __( 'Import from pages', 'alpha-chat' ) }
+						</h2>
+						<p className="alpha-chat-section__desc">
+							{ __(
+								'Paste page URLs (one per line). Alpha Chat fetches them through the WordPress REST API when available, then reads FAQ schema, accordion markup, and question headings.',
+								'alpha-chat'
+							) }
+						</p>
+					</div>
+					<TextareaControl
+						__nextHasNoMarginBottom
+						label={ __( 'Page URLs', 'alpha-chat' ) }
+						value={ importUrls }
+						onChange={ setImportUrls }
+						rows={ 4 }
+						placeholder="https://example.com/faq"
+					/>
+					<div className="alpha-chat-faqs__import-actions">
+						<Button
+							variant="secondary"
+							onClick={ fetchImport }
+							isBusy={ fetching }
+						>
+							{ __( 'Fetch Q&A', 'alpha-chat' ) }
+						</Button>
+						{ selectedItems.length > 0 && (
+							<Button
+								variant="primary"
+								onClick={ importSelected }
+								isBusy={ busy }
+							>
+								{ __( 'Import selected', 'alpha-chat' ) } (
+								{ selectedItems.length })
+							</Button>
+						) }
+					</div>
+					{ importPages.map( ( page ) => (
+						<div
+							key={ page.url }
+							className="alpha-chat-faqs__import-page"
+						>
+							<strong>{ page.title || page.url }</strong>
+							<p className="alpha-chat-hint">{ page.url }</p>
+							{ page.error && (
+								<p className="alpha-chat-row-error">
+									{ page.error }
+								</p>
+							) }
+							{ ! page.error && page.pairs.length === 0 && (
+								<p className="alpha-chat-hint">
+									{ __(
+										'No question-and-answer pairs found on this page.',
+										'alpha-chat'
+									) }
+								</p>
+							) }
+							{ page.pairs.map( ( pair ) => {
+								const key = pairKey( page.url, pair.question );
+								return (
+									<CheckboxControl
+										key={ key }
+										__nextHasNoMarginBottom
+										className="alpha-chat-faqs__import-pair"
+										checked={ !! selectedKeys[ key ] }
+										disabled={ pair.duplicate }
+										onChange={ ( checked ) =>
+											setSelectedKeys( ( current ) => ( {
+												...current,
+												[ key ]: checked,
+											} ) )
+										}
+										label={ pair.question }
+										help={
+											pair.duplicate
+												? __(
+														'Already in curated Q&A.',
+														'alpha-chat'
+												  )
+												: pair.answer
+										}
+									/>
+								);
+							} ) }
+						</div>
+					) ) }
 				</CardBody>
 			</Card>
 

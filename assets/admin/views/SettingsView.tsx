@@ -313,6 +313,8 @@ export function SettingsView() {
 			>
 				<div className="alpha-chat-grid-2">
 					<SelectControl
+						__nextHasNoMarginBottom
+						__next40pxDefaultSize
 						label={ __( 'Provider', 'alpha-chat' ) }
 						value={ selectedProvider?.id ?? settings.llm_provider }
 						options={ catalog.providers.map( ( provider ) => ( {
@@ -329,6 +331,8 @@ export function SettingsView() {
 						} }
 					/>
 					<SelectControl
+						__nextHasNoMarginBottom
+						__next40pxDefaultSize
 						label={ __( 'Chat model', 'alpha-chat' ) }
 						value={ settings.chat_model }
 						options={ modelOptions }
@@ -336,6 +340,8 @@ export function SettingsView() {
 					/>
 				</div>
 				<SelectControl
+					__nextHasNoMarginBottom
+					__next40pxDefaultSize
 					label={ __( 'Thinking', 'alpha-chat' ) }
 					value={ settings.reasoning_effort || 'low' }
 					options={ ( catalog.reasoning ?? [] ).map( ( level ) => ( {
@@ -349,6 +355,8 @@ export function SettingsView() {
 				/>
 				<div className="alpha-chat-grid-2">
 					<SelectControl
+						__nextHasNoMarginBottom
+						__next40pxDefaultSize
 						label={ __( 'Embedding provider', 'alpha-chat' ) }
 						value={
 							selectedEmbedding?.id ?? settings.embedding_provider
@@ -373,6 +381,8 @@ export function SettingsView() {
 						) }
 					/>
 					<SelectControl
+						__nextHasNoMarginBottom
+						__next40pxDefaultSize
 						label={ __( 'Embedding model', 'alpha-chat' ) }
 						value={ settings.embedding_model }
 						options={ embeddingOptions }
@@ -383,6 +393,8 @@ export function SettingsView() {
 				</div>
 				{ needsOpenAiKey && (
 					<TextControl
+						__nextHasNoMarginBottom
+						__next40pxDefaultSize
 						label={ __( 'OpenAI API key', 'alpha-chat' ) }
 						type="password"
 						value={ settings.openai_api_key }
@@ -446,6 +458,7 @@ export function SettingsView() {
 			<Section title={ __( 'Behavior', 'alpha-chat' ) }>
 				<div className="alpha-chat-toggles">
 					<ToggleControl
+						__nextHasNoMarginBottom
 						label={ __( 'Enable chat', 'alpha-chat' ) }
 						checked={ settings.chat_enabled }
 						onChange={ ( value ) =>
@@ -453,6 +466,7 @@ export function SettingsView() {
 						}
 					/>
 					<ToggleControl
+						__nextHasNoMarginBottom
 						label={ __(
 							'Show floating launcher site-wide',
 							'alpha-chat'
@@ -467,6 +481,7 @@ export function SettingsView() {
 						) }
 					/>
 					<ToggleControl
+						__nextHasNoMarginBottom
 						label={ __( 'Enable moderation', 'alpha-chat' ) }
 						checked={ settings.moderation_enabled }
 						onChange={ ( value ) =>
@@ -479,6 +494,7 @@ export function SettingsView() {
 					/>
 				</div>
 				<TextareaControl
+					__nextHasNoMarginBottom
 					label={ __( 'System prompt', 'alpha-chat' ) }
 					value={ settings.system_prompt }
 					onChange={ ( value ) => update( 'system_prompt', value ) }
