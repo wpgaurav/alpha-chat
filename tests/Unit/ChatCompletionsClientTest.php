@@ -21,6 +21,66 @@ final class ChatCompletionsClientTest extends TestCase {
 		$this->assertSame( 'gpt-5.6-luna', $payload['model'] );
 	}
 
+	public function test_reasoning_models_omit_sampling_fields(): void {
+		// Regression guard: sending temperature to a reasoning model fails the
+		// whole request with "does not support 0.7 with this model", so the keys
+		// must be absent rather than sent with a default value.
+		$payload = ChatCompletionsClient::build_payload(
+			'gpt-5.6-luna',
+			[ [ 'role' => 'user', 'content' => 'hi' ] ],
+			[
+				'max_tokens'        => 200,
+				'temperature'       => 0.7,
+				'top_p'             => 0.9,
+				'presence_penalty'  => 0.5,
+				'frequency_penalty' => 0.5,
+			]
+		);
+
+		$this->assertArrayNotHasKey( 'temperature', $payload );
+		$this->assertArrayNotHasKey( 'top_p', $payload );
+		$this->assertArrayNotHasKey( 'presence_penalty', $payload );
+		$this->assertArrayNotHasKey( 'frequency_penalty', $payload );
+	}
+
+	/**
+	 * @return list<array{0: string}>
+	 */
+	public static function reasoning_model_provider(): array {
+		return [ [ 'gpt-5.6-luna' ], [ 'gpt-5' ], [ 'o1-preview' ], [ 'o3-mini' ], [ 'o4-mini' ], [ 'GPT-5.6-Luna' ] ];
+	}
+
+	/**
+	 * @dataProvider reasoning_model_provider
+	 */
+	public function test_reasoning_models_are_detected( string $model ): void {
+		$this->assertTrue( ChatCompletionsClient::uses_fixed_sampling( $model ) );
+		$this->assertTrue( ChatCompletionsClient::uses_completion_tokens( $model ) );
+	}
+
+	public function test_conventional_models_keep_sampling_fields(): void {
+		$payload = ChatCompletionsClient::build_payload(
+			'gpt-4o-mini',
+			[ [ 'role' => 'user', 'content' => 'hi' ] ],
+			[ 'max_tokens' => 200, 'temperature' => 0.7, 'top_p' => 0.9 ]
+		);
+
+		$this->assertSame( 0.7, $payload['temperature'] );
+		$this->assertSame( 0.9, $payload['top_p'] );
+		$this->assertArrayHasKey( 'max_tokens', $payload );
+		$this->assertFalse( ChatCompletionsClient::uses_fixed_sampling( 'gpt-4o-mini' ) );
+	}
+
+	public function test_grok_keeps_sampling_fields(): void {
+		$payload = ChatCompletionsClient::build_payload(
+			'grok-4.6',
+			[ [ 'role' => 'user', 'content' => 'hi' ] ],
+			[ 'max_tokens' => 150, 'temperature' => 0.7 ]
+		);
+
+		$this->assertSame( 0.7, $payload['temperature'] );
+	}
+
 	public function test_grok_uses_max_tokens(): void {
 		$payload = ChatCompletionsClient::build_payload(
 			'grok-4.6',

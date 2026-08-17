@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-17
+
+### Fixed
+- Chat failed with every reasoning model. The stored temperature was sent on each
+  request, and reasoning models (`gpt-5*`, `o1*`, `o3*`, `o4*`) reject any sampling
+  value other than the default, failing the whole request with
+  `'temperature' does not support 0.7 with this model`. `temperature`, `top_p`,
+  `presence_penalty` and `frequency_penalty` are now omitted for those models
+  instead of being sent with a value they refuse. Conventional models such as
+  `gpt-4o` are unaffected and still receive the configured values.
+
+### Added
+- `alpha_chat_is_reasoning_model` filter, for a model the bundled prefix list does
+  not cover yet.
+
 ## [0.3.0] - 2026-08-17
 
 Security and correctness release from a full audit of the plugin. Please read the

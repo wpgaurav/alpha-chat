@@ -139,6 +139,13 @@ final class ChatCompletionsClient implements LLMProvider {
 	}
 
 	/**
+	 * Model id prefixes whose families are reasoning models.
+	 *
+	 * @var list<string>
+	 */
+	private const REASONING_PREFIXES = [ 'gpt-5', 'o1', 'o3', 'o4' ];
+
+	/**
 	 * @param list<array{role: string, content: string}> $messages
 	 * @param array<string, mixed>                       $options
 	 * @param array<string, mixed>                       $extras
@@ -149,15 +156,20 @@ final class ChatCompletionsClient implements LLMProvider {
 		$max_tokens  = $options['max_tokens'] ?? null;
 		$token_param = self::uses_completion_tokens( $model ) ? 'max_completion_tokens' : 'max_tokens';
 
+		// Reasoning models reject any sampling value other than the default and
+		// fail the whole request with a 400 rather than ignoring the field, so the
+		// keys have to be left out entirely rather than sent with a default.
+		$fixed_sampling = self::uses_fixed_sampling( $model );
+
 		$payload = array_filter(
 			[
 				'model'             => $model,
 				'messages'          => $messages,
-				'temperature'       => $options['temperature'] ?? null,
-				'top_p'             => $options['top_p'] ?? null,
+				'temperature'       => $fixed_sampling ? null : ( $options['temperature'] ?? null ),
+				'top_p'             => $fixed_sampling ? null : ( $options['top_p'] ?? null ),
 				$token_param        => $max_tokens,
-				'presence_penalty'  => $options['presence_penalty'] ?? null,
-				'frequency_penalty' => $options['frequency_penalty'] ?? null,
+				'presence_penalty'  => $fixed_sampling ? null : ( $options['presence_penalty'] ?? null ),
+				'frequency_penalty' => $fixed_sampling ? null : ( $options['frequency_penalty'] ?? null ),
 			],
 			static function ( $value ): bool {
 				return null !== $value;
@@ -175,12 +187,39 @@ final class ChatCompletionsClient implements LLMProvider {
 	}
 
 	public static function uses_completion_tokens( string $model ): bool {
-		foreach ( [ 'gpt-5', 'o1', 'o3', 'o4' ] as $prefix ) {
+		return self::is_reasoning_model( $model );
+	}
+
+	/**
+	 * Whether the model only accepts default sampling values.
+	 *
+	 * Reasoning models reject temperature, top_p and the penalty fields outright.
+	 * Sending a stored temperature of 0.7 makes every request fail with
+	 * "does not support 0.7 with this model", so those keys must be omitted.
+	 */
+	public static function uses_fixed_sampling( string $model ): bool {
+		return self::is_reasoning_model( $model );
+	}
+
+	private static function is_reasoning_model( string $model ): bool {
+		$model = strtolower( trim( $model ) );
+
+		foreach ( self::REASONING_PREFIXES as $prefix ) {
 			if ( str_starts_with( $model, $prefix ) ) {
 				return true;
 			}
 		}
 
-		return false;
+		/**
+		 * Filter whether a model is treated as a reasoning model.
+		 *
+		 * Reasoning models take max_completion_tokens instead of max_tokens and
+		 * refuse custom sampling values. Use this for a provider or model the
+		 * bundled prefix list does not cover yet.
+		 *
+		 * @param bool   $is_reasoning Detected from the model id.
+		 * @param string $model        Lowercased model id.
+		 */
+		return (bool) apply_filters( 'alpha_chat_is_reasoning_model', false, $model );
 	}
 }

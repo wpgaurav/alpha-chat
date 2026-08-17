@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude, grok, deepseek
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.3.0
+Stable tag: 0.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -103,6 +103,10 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.3.1 =
+* Fixed: chat failed on every reasoning model (GPT-5 family, o1/o3/o4). Those models reject any temperature other than the default, so the stored value made every request fail with "'temperature' does not support 0.7 with this model". Sampling fields are now omitted for reasoning models. Conventional models such as GPT-4o still receive your configured temperature and top_p.
+* Added: `alpha_chat_is_reasoning_model` filter for models the bundled list does not cover yet.
 
 = 0.3.0 =
 Security and correctness release from a full audit.
