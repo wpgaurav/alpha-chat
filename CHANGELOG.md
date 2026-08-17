@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-08-17
+
+### Fixed
+- Assistant replies showed raw Markdown. Models answer in Markdown, but the widget
+  rendered the reply as plain text, so visitors saw literal `**bold**` and `-`
+  bullets instead of formatting. Replies now render bold, italic, inline code,
+  fenced code blocks, links, headings, and bullet and numbered lists.
+
+### Security
+- The Markdown renderer builds React elements rather than an HTML string, so reply
+  text — which is shaped by retrieved site content and curated Q&A — can never
+  inject markup. The widget still contains no `dangerouslySetInnerHTML`. Links are
+  restricted to `http`, `https` and `mailto`; a `javascript:` URL renders as plain
+  text and every link carries `rel="noopener noreferrer"`.
+
+### Notes
+- A visitor's own message is still rendered verbatim, not as Markdown.
+
 ## [0.3.1] - 2026-08-17
 
 ### Fixed

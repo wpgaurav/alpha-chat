@@ -207,6 +207,53 @@ svg {
 }
 .msg.is-typing .bubble { opacity: 0.7; font-style: italic; }
 
+/* Rendered Markdown in assistant replies. The bubble keeps pre-wrap for plain
+   user text, so the block layout here opts back out of it. */
+.md { white-space: normal; }
+.md > :first-child { margin-block-start: 0; }
+.md > :last-child { margin-block-end: 0; }
+.md p { margin-block: 0 0.6em; }
+.md ul,
+.md ol { margin-block: 0 0.6em; padding-inline-start: 1.25em; }
+.md li { margin-block: 0.15em; }
+.md li > ul,
+.md li > ol { margin-block: 0.2em 0; }
+.md h1,
+.md h2,
+.md h3,
+.md h4,
+.md h5,
+.md h6 {
+	margin-block: 0.4em 0.35em;
+	font-size: 1em;
+	font-weight: 600;
+	line-height: 1.35;
+}
+.md strong { font-weight: 600; }
+.md em { font-style: italic; }
+.md a { color: var(--ac-accent); text-decoration: underline; }
+.md code {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 0.9em;
+	padding: 0.1em 0.32em;
+	border-radius: 5px;
+	background: rgba(0, 0, 0, 0.06);
+	word-break: break-word;
+}
+.md pre {
+	margin-block: 0 0.6em;
+	padding: 0.6em 0.75em;
+	border-radius: 10px;
+	background: rgba(0, 0, 0, 0.06);
+	overflow-x: auto;
+}
+.md pre code {
+	padding: 0;
+	background: none;
+	white-space: pre;
+	word-break: normal;
+}
+
 .sources { display: flex; flex-direction: column; gap: 0.35rem; width: 100%; margin-block-start: 0.15rem; }
 .source {
 	display: flex;

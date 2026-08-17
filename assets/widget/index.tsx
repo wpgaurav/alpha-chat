@@ -14,6 +14,7 @@ function domReady( callback: () => void ): void {
 }
 
 import { widgetStyles } from './styles';
+import { Markdown } from './markdown';
 
 type Role = 'user' | 'assistant';
 
@@ -895,7 +896,15 @@ function ChatPanel( {
 			<div className="log" ref={ scrollRef }>
 				{ messages.map( ( m ) => (
 					<div key={ m.id } className={ `msg is-${ m.role }` }>
-						<div className="bubble">{ m.content }</div>
+						<div className="bubble">
+							{ /* Only assistant replies are Markdown. A visitor's
+							     own message is shown exactly as they typed it. */ }
+							{ m.role === 'assistant' ? (
+								<Markdown text={ m.content } />
+							) : (
+								m.content
+							) }
+						</div>
 						{ m.role === 'assistant' && m.sources && (
 							<SourceCards sources={ m.sources } />
 						) }
