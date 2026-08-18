@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude, grok, deepseek
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.4.0
+Stable tag: 0.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -103,6 +103,9 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.4.1 =
+* Fixed: a fatal "Allowed memory size exhausted" error whenever the plugin update cache was cleared, including during WP-CLI update checks after a cache flush. The license update hook deleted the same transient it listens on, re-entering itself until PHP ran out of memory. It now guards against re-entry.
 
 = 0.4.0 =
 * New: **Error log.** Errors and warnings now appear under Alpha Chat → Logs, with a level filter, expandable context, and a clear button. Provider failures were previously invisible unless you read the PHP error log. API keys are stripped before anything is stored, and entries are pruned daily.

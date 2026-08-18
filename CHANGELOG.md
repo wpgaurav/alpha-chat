@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-18
+
+### Fixed
+- **Fatal error when the plugin update cache was cleared.** `clear_update_cache()`
+  is hooked on `delete_site_transient_update_plugins` and deleted that same
+  transient, which fired the action again; the hook re-entered itself until PHP
+  exhausted memory ("Allowed memory size exhausted"). Any code path that deletes
+  the `update_plugins` site transient triggered it, including `wp plugin list`
+  after a cache flush. The method now holds a re-entry guard.
+
 ## [0.4.0] - 2026-08-17
 
 ### Added

@@ -17,6 +17,16 @@ final class LicenseManager {
 
 	private string $plugin_basename;
 
+	/**
+	 * Whether clear_update_cache() is already running. The method is hooked on
+	 * delete_site_transient_update_plugins and deletes that same transient,
+	 * which fires the action again. Without this guard the hook re-enters
+	 * itself until PHP exhausts memory.
+	 *
+	 * @var bool
+	 */
+	private static bool $clearing_update_cache = false;
+
 	public function __construct() {
 		$this->plugin_basename = plugin_basename( ALPHA_CHAT_FILE );
 	}
@@ -233,8 +243,18 @@ final class LicenseManager {
 	}
 
 	public function clear_update_cache(): void {
-		delete_transient( self::UPDATE_CACHE );
-		delete_site_transient( 'update_plugins' );
+		if ( self::$clearing_update_cache ) {
+			return;
+		}
+
+		self::$clearing_update_cache = true;
+
+		try {
+			delete_transient( self::UPDATE_CACHE );
+			delete_site_transient( 'update_plugins' );
+		} finally {
+			self::$clearing_update_cache = false;
+		}
 	}
 
 	/** @param array<int|string, string> $links
