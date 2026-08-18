@@ -683,6 +683,23 @@
 	}
 }
 
+.alpha-chat-offsets {
+	margin-block-start: 1rem;
+	padding-block-start: 0.75rem;
+	border-block-start: 1px solid #e0e0e0;
+
+	&__label {
+		margin: 0 0 0.75rem;
+		font-weight: 600;
+	}
+
+	&__note {
+		margin-block-start: 0.75rem;
+		color: #757575;
+		font-size: 12px;
+	}
+}
+
 .alpha-chat-logs {
 	&__summary {
 		color: #757575;

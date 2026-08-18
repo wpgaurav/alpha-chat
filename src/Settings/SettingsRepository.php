@@ -160,6 +160,21 @@ final class SettingsRepository {
 			$output['launcher_devices'] = $devices;
 		}
 
+		if ( isset( $input['launcher_offset'] ) && is_array( $input['launcher_offset'] ) ) {
+			$stored = is_array( $output['launcher_offset'] ?? null ) ? $output['launcher_offset'] : [];
+			$offset = [];
+			foreach ( $defaults['launcher_offset'] as $edge => $fallback ) {
+				// Absent means unchanged, so a partial payload cannot silently
+				// reset the three edges it did not mention.
+				if ( ! array_key_exists( $edge, $input['launcher_offset'] ) ) {
+					$offset[ $edge ] = array_key_exists( $edge, $stored ) ? (int) $stored[ $edge ] : (int) $fallback;
+					continue;
+				}
+				$offset[ $edge ] = max( 0, min( 400, (int) $input['launcher_offset'][ $edge ] ) );
+			}
+			$output['launcher_offset'] = $offset;
+		}
+
 		if ( isset( $input['colors'] ) && is_array( $input['colors'] ) ) {
 			$colors = [];
 			foreach ( $defaults['colors'] as $color_key => $default_color ) {
@@ -226,6 +241,12 @@ final class SettingsRepository {
 					'desktop' => true,
 					'tablet'  => true,
 					'mobile'  => true,
+				],
+				'launcher_offset'            => [
+					'bottom'        => 20,
+					'side'          => 20,
+					'mobile_bottom' => 20,
+					'mobile_side'   => 20,
 				],
 				'ai_thread_titles'           => true,
 				'brand_name'                 => get_bloginfo( 'name' ),

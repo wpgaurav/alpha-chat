@@ -49,6 +49,44 @@ type LauncherDevices = {
 	mobile: boolean;
 };
 
+type LauncherOffset = {
+	bottom: number;
+	side: number;
+	mobile_bottom: number;
+	mobile_side: number;
+};
+
+const OFFSET_DEFAULT = 20;
+const OFFSET_MAX = 400;
+
+/**
+ * Turn the stored offset into the CSS custom properties the stylesheet reads.
+ *
+ * Clamped and re-serialised as pixels here as well as in PHP: the value ends up
+ * in an inline style, so it never gets to be a caller-supplied CSS string.
+ * @param offset
+ */
+function offsetVars( offset?: LauncherOffset ): Record< string, string > {
+	if ( ! offset ) {
+		return {};
+	}
+
+	const px = ( value: unknown ): string => {
+		const n = Number( value );
+		if ( ! Number.isFinite( n ) ) {
+			return `${ OFFSET_DEFAULT }px`;
+		}
+		return `${ Math.max( 0, Math.min( OFFSET_MAX, Math.round( n ) ) ) }px`;
+	};
+
+	return {
+		'--ac-offset-bottom': px( offset.bottom ),
+		'--ac-offset-side': px( offset.side ),
+		'--ac-offset-bottom-mobile': px( offset.mobile_bottom ),
+		'--ac-offset-side-mobile': px( offset.mobile_side ),
+	};
+}
+
 /**
  * Map the per-device settings onto the CSS classes that hide the launcher.
  *
@@ -84,6 +122,7 @@ type ClientData = {
 	launcherNudge: string;
 	launcherPosition: Position;
 	launcherDevices?: LauncherDevices;
+	launcherOffset?: LauncherOffset;
 	brandName: string;
 	contactFormEnabled: boolean;
 	contactCtaLabel: string;
@@ -1014,9 +1053,13 @@ function ChatPanel( {
 function FloatingWidget( { client }: { client: ClientData } ) {
 	const [ open, setOpen ] = useState( false );
 	const position = client.launcherPosition || 'right';
+	const rootStyle = {
+		...cssVarStyle( client.colors ?? {} ),
+		...offsetVars( client.launcherOffset ),
+	} as React.CSSProperties;
 
 	return (
-		<div className="root" style={ cssVarStyle( client.colors ?? {} ) }>
+		<div className="root" style={ rootStyle }>
 			{ open && (
 				<div className={ `panel pos-${ position }` }>
 					<ChatPanel

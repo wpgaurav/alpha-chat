@@ -95,6 +95,13 @@ export type LauncherDevices = {
 	mobile: boolean;
 };
 
+export type LauncherOffset = {
+	bottom: number;
+	side: number;
+	mobile_bottom: number;
+	mobile_side: number;
+};
+
 export type LogEntry = {
 	id: number;
 	level: 'error' | 'warning';
@@ -139,6 +146,7 @@ export type Settings = {
 	launcher_nudge: string;
 	launcher_position: 'left' | 'center' | 'right';
 	launcher_devices: LauncherDevices;
+	launcher_offset: LauncherOffset;
 	ai_thread_titles: boolean;
 	brand_name: string;
 	contact_form_enabled: boolean;

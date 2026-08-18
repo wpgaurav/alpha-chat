@@ -13,6 +13,25 @@ export const widgetStyles = `
 	--ac-user-bubble: var(--ac-accent);
 	--ac-assistant-bubble: #f3f4f6;
 	--ac-radius: 20px;
+
+	/* Distance from the viewport edges. Overridden inline from the admin
+	   setting so a theme's own fixed bottom bar (mobile nav, share row,
+	   cookie strip) can keep its space. --ac-offset-b / --ac-offset-s are
+	   the resolved pair every rule below reads; the media query swaps in
+	   the mobile pair per visitor, so it survives a full-page cache. */
+	--ac-offset-bottom: 20px;
+	--ac-offset-side: 20px;
+	--ac-offset-bottom-mobile: 20px;
+	--ac-offset-side-mobile: 20px;
+	--ac-offset-b: var(--ac-offset-bottom);
+	--ac-offset-s: var(--ac-offset-side);
+}
+
+@media (max-width: 767px) {
+	:host, .root {
+		--ac-offset-b: var(--ac-offset-bottom-mobile);
+		--ac-offset-s: var(--ac-offset-side-mobile);
+	}
 }
 
 * {
@@ -27,7 +46,7 @@ svg {
 
 .launcher {
 	position: fixed;
-	inset-block-end: 1.25rem;
+	inset-block-end: var(--ac-offset-b);
 	z-index: 2147483000;
 	display: flex;
 	align-items: center;
@@ -35,8 +54,8 @@ svg {
 	pointer-events: none;
 }
 
-.launcher.pos-right { inset-inline-end: 1.25rem; }
-.launcher.pos-left  { inset-inline-start: 1.25rem; flex-direction: row-reverse; }
+.launcher.pos-right { inset-inline-end: var(--ac-offset-s); }
+.launcher.pos-left  { inset-inline-start: var(--ac-offset-s); flex-direction: row-reverse; }
 .launcher.pos-center {
 	inset-inline-start: 50%;
 	transform: translateX(-50%);
@@ -121,10 +140,10 @@ svg {
 
 .panel {
 	position: fixed;
-	inset-block-end: 1.25rem;
+	inset-block-end: var(--ac-offset-b);
 	z-index: 2147483000;
 	width: min(420px, calc(100vw - 2rem));
-	height: min(640px, calc(100vh - 6rem));
+	height: min(640px, calc(100vh - var(--ac-offset-b) - 4.75rem));
 	background: var(--ac-bg);
 	border-radius: 24px;
 	border: 1px solid var(--ac-border);
@@ -134,8 +153,8 @@ svg {
 	overflow: hidden;
 }
 
-.panel.pos-right { inset-inline-end: 1.25rem; }
-.panel.pos-left  { inset-inline-start: 1.25rem; }
+.panel.pos-right { inset-inline-end: var(--ac-offset-s); }
+.panel.pos-left  { inset-inline-start: var(--ac-offset-s); }
 .panel.pos-center {
 	inset-inline-start: 50%;
 	transform: translateX(-50%);
@@ -409,7 +428,7 @@ svg {
 @media (max-width: 520px) {
 	.panel {
 		width: calc(100vw - 1rem);
-		height: calc(100vh - 5rem);
+		height: calc(100vh - var(--ac-offset-b) - 3.75rem);
 		inset-inline-end: 0.5rem;
 		inset-inline-start: 0.5rem;
 	}

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-18
+
+### Added
+- **Launcher offset.** Four new fields under Settings → Launcher set how far the
+  floating button and panel sit from the bottom and side of the screen, in pixels,
+  with separate values for desktop and mobile. The launcher was pinned 20px from
+  the edges, so on themes with their own fixed bottom bar — a mobile nav, a share
+  row, a cookie strip — it covered the controls underneath it and there was no way
+  to move it. Values are clamped to 0-400px, and the panel's height subtracts the
+  bottom offset so raising the widget cannot push the panel off the top of the
+  screen. Defaults reproduce the previous position exactly. Applied as CSS custom
+  properties evaluated per visitor, so the desktop/mobile split stays correct
+  behind a full-page cache.
+
 ## [0.4.1] - 2026-08-18
 
 ### Fixed

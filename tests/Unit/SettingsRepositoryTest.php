@@ -203,4 +203,74 @@ final class SettingsRepositoryTest extends TestCase {
 		$this->assertTrue( $sanitized['chat_enabled'] );
 		$this->assertFalse( $sanitized['moderation_enabled'] );
 	}
+
+	public function test_launcher_offset_defaults_reproduce_the_previous_position(): void {
+		$defaults = SettingsRepository::defaults();
+
+		$this->assertSame(
+			[
+				'bottom'        => 20,
+				'side'          => 20,
+				'mobile_bottom' => 20,
+				'mobile_side'   => 20,
+			],
+			$defaults['launcher_offset']
+		);
+	}
+
+	public function test_sanitize_clamps_launcher_offset(): void {
+		Functions\when( 'get_option' )->alias(
+			static fn ( string $key ): string|array => 'admin_email' === $key ? 'admin@example.com' : []
+		);
+
+		$repo      = new SettingsRepository();
+		$sanitized = $repo->sanitize(
+			[
+				'launcher_offset' => [
+					'bottom'        => 9999,
+					'side'          => -40,
+					'mobile_bottom' => '72',
+					'mobile_side'   => 16.9,
+				],
+			]
+		);
+
+		$this->assertSame(
+			[
+				'bottom'        => 400,
+				'side'          => 0,
+				'mobile_bottom' => 72,
+				'mobile_side'   => 16,
+			],
+			$sanitized['launcher_offset']
+		);
+	}
+
+	public function test_sanitize_keeps_launcher_offset_edges_absent_from_the_payload(): void {
+		Functions\when( 'get_option' )->alias(
+			static fn ( string $key ): string|array => 'admin_email' === $key
+				? 'admin@example.com'
+				: [
+					'launcher_offset' => [
+						'bottom'        => 30,
+						'side'          => 40,
+						'mobile_bottom' => 90,
+						'mobile_side'   => 10,
+					],
+				]
+		);
+
+		$repo      = new SettingsRepository();
+		$sanitized = $repo->sanitize( [ 'launcher_offset' => [ 'mobile_bottom' => 120 ] ] );
+
+		$this->assertSame(
+			[
+				'bottom'        => 30,
+				'side'          => 40,
+				'mobile_bottom' => 120,
+				'mobile_side'   => 10,
+			],
+			$sanitized['launcher_offset']
+		);
+	}
 }

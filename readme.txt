@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude, grok, deepseek
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.4.1
+Stable tag: 0.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -99,10 +99,13 @@ IPs are hashed before storage. Thread and message tables store only the message 
 2. Knowledge Base — filter by post type + indexed state, batch index / remove, "Index remaining".
 3. Conversations — thread list + message inspector with CSV export.
 4. Contacts — submissions from the in-chat contact form.
-5. Settings — preset picker, provider/model dropdowns, launcher position, widget colors, contact form options.
+5. Settings — preset picker, provider/model dropdowns, launcher position and offset, widget colors, contact form options.
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.5.0 =
+* New: **Launcher offset.** Set how far the chat button and panel sit from the bottom and side of the screen, in pixels, with separate values for desktop and mobile. Use it when your theme has its own fixed bottom bar — a mobile nav, a share row, a cookie notice — and the chat button covers it. Under Settings → Launcher. Defaults keep the current position.
 
 = 0.4.1 =
 * Fixed: a fatal "Allowed memory size exhausted" error whenever the plugin update cache was cleared, including during WP-CLI update checks after a cache flush. The license update hook deleted the same transient it listens on, re-entering itself until PHP ran out of memory. It now guards against re-entry.

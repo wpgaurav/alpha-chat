@@ -25,6 +25,41 @@ import {
 
 type PresetKey = 'fast' | 'balanced' | 'quality';
 
+const OFFSET_DEFAULT = 20;
+const OFFSET_MAX = 400;
+
+const OFFSET_FIELDS: {
+	key: keyof Settings[ 'launcher_offset' ];
+	label: string;
+}[] = [
+	{ key: 'bottom', label: __( 'Bottom, desktop', 'alpha-chat' ) },
+	{ key: 'side', label: __( 'Side, desktop', 'alpha-chat' ) },
+	{ key: 'mobile_bottom', label: __( 'Bottom, mobile', 'alpha-chat' ) },
+	{ key: 'mobile_side', label: __( 'Side, mobile', 'alpha-chat' ) },
+];
+
+function clampOffset( value: string ): number {
+	const parsed = parseInt( value, 10 );
+	if ( Number.isNaN( parsed ) ) {
+		return 0;
+	}
+	return Math.max( 0, Math.min( OFFSET_MAX, parsed ) );
+}
+
+function offsetWith(
+	current: Settings[ 'launcher_offset' ] | undefined,
+	key: keyof Settings[ 'launcher_offset' ],
+	value: number
+): Settings[ 'launcher_offset' ] {
+	return {
+		bottom: current?.bottom ?? OFFSET_DEFAULT,
+		side: current?.side ?? OFFSET_DEFAULT,
+		mobile_bottom: current?.mobile_bottom ?? OFFSET_DEFAULT,
+		mobile_side: current?.mobile_side ?? OFFSET_DEFAULT,
+		[ key ]: value,
+	};
+}
+
 const COLOR_FIELDS: { key: string; label: string }[] = [
 	{ key: 'accent', label: __( 'Accent', 'alpha-chat' ) },
 	{ key: 'background', label: __( 'Panel', 'alpha-chat' ) },
@@ -631,6 +666,44 @@ export function SettingsView() {
 					<p className="alpha-chat-devices__note">
 						{ __(
 							'Applied in the browser by screen width, so it stays correct behind a page cache. Blocks and shortcodes are unaffected.',
+							'alpha-chat'
+						) }
+					</p>
+				</div>
+				<div className="alpha-chat-offsets">
+					<p className="alpha-chat-offsets__label">
+						{ __( 'Distance from the screen edge', 'alpha-chat' ) }
+					</p>
+					<div className="alpha-chat-grid-2">
+						{ OFFSET_FIELDS.map( ( { key, label } ) => (
+							<TextControl
+								key={ key }
+								__nextHasNoMarginBottom
+								label={ label }
+								type="number"
+								min={ 0 }
+								max={ OFFSET_MAX }
+								step={ 1 }
+								value={ String(
+									settings.launcher_offset?.[ key ] ??
+										OFFSET_DEFAULT
+								) }
+								onChange={ ( value ) =>
+									update(
+										'launcher_offset',
+										offsetWith(
+											settings.launcher_offset,
+											key,
+											clampOffset( value )
+										)
+									)
+								}
+							/>
+						) ) }
+					</div>
+					<p className="alpha-chat-offsets__note">
+						{ __(
+							'Pixels, 0 to 400. Raise the mobile bottom value to clear a sticky bottom bar, share row, or cookie notice so the button no longer covers it.',
 							'alpha-chat'
 						) }
 					</p>

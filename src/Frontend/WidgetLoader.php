@@ -90,6 +90,7 @@ final class WidgetLoader {
 				'launcherNudge'         => (string) ( $settings['launcher_nudge'] ?? '' ),
 				'launcherPosition'      => $position,
 				'launcherDevices'       => self::devices( $settings['launcher_devices'] ?? [] ),
+				'launcherOffset'        => self::offset( $settings['launcher_offset'] ?? [] ),
 				'brandName'             => (string) ( $settings['brand_name'] ?? get_bloginfo( 'name' ) ),
 				'contactFormEnabled'    => (bool) ( $settings['contact_form_enabled'] ?? true ),
 				'contactCtaLabel'       => (string) ( $settings['contact_cta_label'] ?? '' ),
@@ -126,6 +127,33 @@ final class WidgetLoader {
 			'tablet'  => ! array_key_exists( 'tablet', $stored ) || (bool) $stored['tablet'],
 			'mobile'  => ! array_key_exists( 'mobile', $stored ) || (bool) $stored['mobile'],
 		];
+	}
+
+	/**
+	 * Normalise the launcher offset for the client.
+	 *
+	 * Kept in pixels rather than a free-form CSS length so a bad value cannot
+	 * inject anything into the inline style the widget writes.
+	 *
+	 * @param mixed $value Stored setting.
+	 *
+	 * @return array{bottom: int, side: int, mobile_bottom: int, mobile_side: int}
+	 */
+	private static function offset( mixed $value ): array {
+		$stored   = is_array( $value ) ? $value : [];
+		$defaults = SettingsRepository::defaults()['launcher_offset'];
+		$offset   = [];
+
+		foreach ( $defaults as $edge => $fallback ) {
+			$offset[ $edge ] = array_key_exists( $edge, $stored )
+				? max( 0, min( 400, (int) $stored[ $edge ] ) )
+				: (int) $fallback;
+		}
+
+		/**
+		 * @var array{bottom: int, side: int, mobile_bottom: int, mobile_side: int} $offset
+		 */
+		return $offset;
 	}
 
 	public function render_mount(): void {

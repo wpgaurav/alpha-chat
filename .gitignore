@@ -19,3 +19,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Local release staging (packages + one-off release scripts)
+/__release-*/
