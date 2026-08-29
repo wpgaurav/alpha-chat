@@ -176,7 +176,7 @@ final class ChatService {
 			'options'         => [
 				'temperature'      => (float) $this->settings->get( 'temperature', 0.7 ),
 				'top_p'            => (float) $this->settings->get( 'top_p', 1.0 ),
-				'max_tokens'       => (int) $this->settings->get( 'max_response_tokens', 800 ),
+				'max_tokens'       => (int) $this->settings->get( 'max_response_tokens', 1600 ),
 				'reasoning_effort' => (string) $this->settings->get( 'reasoning_effort', 'low' ),
 			],
 			'thread'          => $thread,
@@ -254,7 +254,7 @@ final class ChatService {
 			$brand
 		);
 
-		$behaviour = "Answer helpfully and concisely. Prefer the curated Q&A, the current page the user is viewing, and the retrieved site context below — but you are free to draw on general knowledge to explain, clarify, or summarize when the context is thin. Respond naturally to greetings, thanks, goodbyes, and small talk. Never refuse a reasonable question; if you genuinely do not know something, say so in your own words.";
+		$behaviour = "Answer helpfully and concisely. Keep replies short by default — a few sentences for most questions. Go longer only when the user asks for detail, steps, or a list, and even then stay tight; never pad an answer to fill space. Prefer the curated Q&A, the current page the user is viewing, and the retrieved site context below — but you are free to draw on general knowledge to explain, clarify, or summarize when the context is thin. Respond naturally to greetings, thanks, goodbyes, and small talk. Never refuse a reasonable question; if you genuinely do not know something, say so in your own words.";
 
 		$system_setting = trim( (string) $this->settings->get( 'system_prompt', '' ) );
 		$system         = $identity . "\n\n" . $behaviour . ( '' !== $system_setting ? "\n\n" . $system_setting : '' );

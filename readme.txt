@@ -4,7 +4,7 @@ Tags: ai, chatbot, openai, anthropic, rag, gpt, claude, grok, deepseek
 Requires at least: 6.5
 Tested up to: 6.7
 Requires PHP: 8.2
-Stable tag: 0.5.0
+Stable tag: 0.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -103,6 +103,10 @@ IPs are hashed before storage. Thread and message tables store only the message 
 6. Widget — floating nudge prompt, chat panel with source cards.
 
 == Changelog ==
+
+= 0.5.1 =
+* Changed: the default response length budget is doubled to 1600 tokens, so answers no longer cut off mid-sentence. New installs get the new default; existing installs keep their configured value under Settings → AI Model.
+* Changed: the built-in prompt now asks the assistant to keep replies short by default and go longer only when you ask for detail, steps, or a list — the bigger budget prevents truncation without making every answer longer.
 
 = 0.5.0 =
 * New: **Launcher offset.** Set how far the chat button and panel sit from the bottom and side of the screen, in pixels, with separate values for desktop and mobile. Use it when your theme has its own fixed bottom bar — a mobile nav, a share row, a cookie notice — and the chat button covers it. Under Settings → Launcher. Defaults keep the current position.

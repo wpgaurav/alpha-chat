@@ -266,7 +266,7 @@ final class SettingsRepository {
 				'embedding_model'            => 'text-embedding-3-small',
 				'temperature'                => 0.7,
 				'top_p'                      => 1.0,
-				'max_response_tokens'        => 800,
+				'max_response_tokens'        => 1600,
 				'max_context_chunks'         => 5,
 				'chunk_size_tokens'          => 400,
 				'chunk_overlap_tokens'       => 50,

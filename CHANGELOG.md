@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-08-29
+
+### Changed
+- **Response length budget doubled to 1600 tokens.** The 800-token default could
+  cut answers off mid-sentence, which read as a provider failure. New installs now
+  default to 1600; existing installs keep their configured value under
+  Settings → AI Model (the ceiling remains 4096).
+- **The built-in prompt now asks for short replies.** With double the budget
+  available, the assistant is instructed to answer in a few sentences by default
+  and go longer only when the visitor asks for detail, steps, or a list — so the
+  bigger ceiling prevents truncation without inflating every answer. This applies
+  on top of any custom system prompt.
+
 ## [0.5.0] - 2026-08-18
 
 ### Added
