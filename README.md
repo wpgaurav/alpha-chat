@@ -1,5 +1,7 @@
 # Alpha Chat
 
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=flat&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/gauravtiwari)
+
 AI-powered chatbot for WordPress. Indexes your site content, answers visitor questions with retrieval-augmented generation, ships with a site-database vector store, pluggable providers, and a shadow-DOM-isolated chat widget.
 
 ## Highlights
@@ -144,6 +146,16 @@ See `HOOKS.md` for the full list. Highlights:
 - Chat and embedding requests go to the provider you configure. No telemetry is sent to any other endpoint.
 - License activation, deactivation, and update checks contact `gauravtiwari.org`; signed packages are returned only to a valid activation.
 - Uninstall (`uninstall.php`) drops all plugin tables, options, post meta, and scheduled Action Scheduler jobs.
+
+## Support This Project
+
+Alpha Chat is a free WordPress plugin that answers your visitors from your own posts and pages and cites the sources it used, with no upsells or telemetry. Its CI runs PHPCS, PHPStan level 8 and PHPUnit on PHP 8.2 and 8.3, and the code is open source under the GPL.
+
+If Alpha Chat gave your visitors grounded answers without a separate vector database to set up, you can buy me a coffee.
+
+<a href="https://buymeacoffee.com/gauravtiwari"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="50"></a>
+
+Starring the repo helps as well, and so does an issue with the question that got a wrong answer, your chat and embedding providers and your WordPress and PHP versions.
 
 ## License
 
